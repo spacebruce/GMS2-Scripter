@@ -15,26 +15,34 @@ function EventHandler() constructor
 	enum EventCode
 	{
 		DebugPrint, End, Nop, 
-		JumpLabel, NewStackFrame, DiscardStackFrame, Return,
-		Push, Pop,
+		JumpTo, NewStackFrame, DiscardStackFrame, Call,Return,
+		Push, Pop, GetArgument, 
+		Increment,Decrement,
 		Add,Subtract,Divide,Multiply, FlipSign,
 	}
 	enum EventState 
 	{
-		Running, Error, Finished, 
+		Running, Error, Waiting, Finished, 
 	}
 	
 	//Runtime
 	State = EventState.Running;
-	DebugMode = false;
-	ProgramPointer = -1;
+	Debug = false;
+	ProgramPointer = 0;
 	Stack = ds_stack_create();
 	StackHistory = ds_stack_create();
+	
+	ReturnPointer = ds_stack_create();
+	FunctionArguments = ds_stack_create();
+	
 	Interrupts = ds_list_create();
 	JumpMap = ds_map_create();
 	Memory = array_create(1, 0);
 	
-	//Internal
+	FunctionName = ds_map_create();
+	NamesDefined = false;
+	
+	#region Internal
 	static InternalPollInterrupts = function(Timestep)
 	{
 		for(var i = 0; i < ds_list_size(Interrupts); ++i)
@@ -69,28 +77,63 @@ function EventHandler() constructor
 		}
 	}
 	static InternalGoto = function(Name)
-	{
-		var jump = ds_map_find_value(JumpMap, Name);
-		if(is_undefined(jump))
+	{		
+		var target = ds_map_find_value(JumpMap, Name);
+		if(is_undefined(target))
 			throw("Bad jump, can't find label " + string(Name));
-		ProgramPointer = jump;
+		ProgramPointer = target.Target;
 	}
-	static InternalFunctionCall = function(Name, Arguments)
+	static InternalFunctionCall = function(Name)
 	{
+		Trace("Jumping to",Name);
+		//Find target and get argument signature
+		var target = ds_map_find_value(JumpMap, Name);
+		if(is_undefined(target))
+			throw("Bad jump, can't find label " + string(Name));
 		//Carry arguments over to new stack frame
-		var temp = ds_stack_create();
-		for(var i = 0; i < Arguments; ++i)
+		var argNum = target.Arguments;
+		Trace(Name, "takes", argNum, "Arguments");
+		var args = ds_list_create();
+		for(var i = 0; i < argNum; ++i)
 		{
-			ds_stack_push(temp, ds_stack_pop(Stack));
+			var a = ds_stack_pop(Stack);
+			ds_list_add(args,  a);
+			Trace("arg",i,"a");
 		}
-		ds_stack_push(temp, Pointer);	//return position
-		InternalGoto(Name);
-		
+		//Store new arguments & return pointer on stack
+		ds_stack_push(FunctionArguments, args);
+		ds_stack_push(ReturnPointer, ProgramPointer);		//Return pointer
+		//Go to function & create new stack frame
+		ProgramPointer = target.Target;
+		InternalNewStackFrame();
 	}
 	static InternalFunctionReturn = function(Size)
 	{
-		var stack = ds_stack_create();
-		
+		//Save return values
+		var returnStack = ds_stack_create();
+		Trace("Returning",Size);
+		repeat(Size)
+		{
+			var s = ds_stack_pop(Stack);
+			ds_stack_push(returnStack, s);
+			Trace("out",s);
+		}
+		//Destroy function input arguments
+		ds_list_destroy(ds_stack_top(FunctionArguments));
+		ds_stack_pop(FunctionArguments);
+		//Move pointer back
+		ProgramPointer = ds_stack_pop(ReturnPointer);
+		//Return to previous stack frame
+		InternalDiscardStackFrame();	
+		//Offload args onto stack
+		repeat(Size)
+		{
+			var s = ds_stack_pop(returnStack);
+			ds_stack_push(Stack, s);
+			Trace("in",s);
+		}
+		//cleanup & move on
+		ds_stack_destroy(returnStack);
 	}
 	static InternalMemorySet = function(Address, Value)
 	{
@@ -112,14 +155,40 @@ function EventHandler() constructor
 	}
 	static InternalNewStackFrame = function()
 	{
-		ds_stack_push(StackTable);
+		ds_stack_push(StackHistory, Stack);
 		Stack = ds_stack_create();
 	}
 	static InternalDiscardStackFrame = function()
 	{
-		Stack = ds_stack_pop(StackTable);
+		ds_stack_destroy(Stack);
+		Stack = ds_stack_pop(StackHistory);
 	}
-	//Public
+	static InternalGetArgument = function(Index)
+	{
+		var list = ds_stack_top(FunctionArguments);
+		return list[| Index];
+	}
+	static InternalNameLookup = function()
+	{
+		/*
+			@yoyo plz give us enum reflection so I don't need to do this crap
+		*/
+		NamesDefined = true;
+		FunctionName[? EventCode.DebugPrint] = "DebugPrint";	FunctionName[? EventCode.End] = "End";	FunctionName[? EventCode.Nop] = "Nop";
+		FunctionName[? EventCode.JumpTo] = "Goto Label";	FunctionName[? EventCode.NewStackFrame] = "New stack";	FunctionName[? EventCode.DiscardStackFrame] = "Discard Stack";
+		FunctionName[? EventCode.Call] = "Function";	FunctionName[? EventCode.Return] = "Return";	FunctionName[? EventCode.Push] = "Push";
+		FunctionName[? EventCode.Pop] = "Pop";	FunctionName[? EventCode.Add] = "Add";	FunctionName[? EventCode.Subtract] = "Subtract";
+		FunctionName[? EventCode.Divide] = "Divide";	FunctionName[? EventCode.Multiply] = "Multiply";	FunctionName[? EventCode.FlipSign] = "Flip Sign";
+		FunctionName[? EventCode.Increment] = "Increment";	FunctionName[? EventCode.Decrement] = "Decrement";	FunctionName[? EventCode.GetArgument] = "Push argument";
+		FunctionName[? EventCode.GetArgument] = "Get argument";
+	}
+	static InternalCrashHandler = function()
+	{
+		Trace("Script Crash!!!");
+		Trace("Point", ProgramPointer);
+		Trace("Stack", ds_stack_write(Stack));
+		Trace("Memory", Memory);
+	}
 	static CommandAdd = function(Type)
 	{
 		ds_list_add(CommandList, { Command : Type, Data : undefined });	
@@ -128,11 +197,26 @@ function EventHandler() constructor
 	{
 		ds_list_add(CommandList, { Command : Type, Data : Value });	
 	}
+	#endregion
 	
+	#region Public
+	static DebugMode = function(State)
+	{
+		Debug = State;
+		if(!NamesDefined)
+		{
+			InternalNameLookup();
+		}
+		Trace("Debug mode", Debug ? "On": "Off");
+	}
 	static Update = function(Timestep)
 	{
-		++ProgramPointer;
+		//Handle timers, delays, interrupts
 		InternalPollInterrupts(Timestep);
+		//If not ready to do something, halt
+		if(State != EventState.Running)
+			return;
+		
 		var Command = ds_list_find_value(CommandList, ProgramPointer);
 		switch(Command.Command)
 		{
@@ -141,53 +225,62 @@ function EventHandler() constructor
 			case EventCode.End:			State = EventState.Finished;	break;
 			case EventCode.Nop:			/*		nah			*/			break;
 		//flow
-			case EventCode.JumpLabel:			InternalGoto(Command.Data);		break;
+			case EventCode.JumpTo:			InternalFunctionCall(Command.Data);		break;
 			case EventCode.NewStackFrame:		InternalNewStackFrame();		break;
 			case EventCode.DiscardStackFrame:	InternalDiscardStackFrame();	break;
-			case EventCode.Return:				InternalFunctionReturn();		break;
+			case EventCode.Return:				InternalFunctionReturn(Command.Data);		break;
+			case EventCode.GetArgument:	ds_stack_push(Stack, InternalGetArgument(Command.Data));	break;
 		//Stack
 			case EventCode.Push:		ds_stack_push(Stack, Command.Data);	break;
 			case EventCode.Pop:			ds_stack_pop(Stack);				break;
 		//Numbers
 			case EventCode.Add:
 				var a = ds_stack_pop(Stack);	var b = ds_stack_pop(Stack);
-				ds_stack_push(Stack, a + b);
+				ds_stack_push(Stack, b + a);
 			break;
 			case EventCode.Subtract:
 				var a = ds_stack_pop(Stack);	var b = ds_stack_pop(Stack);
-				ds_stack_push(Stack, a - b);
+				ds_stack_push(Stack, b - a);
 			break;
 			case EventCode.Divide:
 				var a = ds_stack_pop(Stack);	var b = ds_stack_pop(Stack);
-				ds_stack_push(Stack, a / b);
+				ds_stack_push(Stack, b / a);
 			break;
 			case EventCode.Multiply:
 				var a = ds_stack_pop(Stack);	var b = ds_stack_pop(Stack);
-				ds_stack_push(Stack, a * b);
+				ds_stack_push(Stack, b * a);
 			break;
 			case EventCode.FlipSign:
 				var a = ds_stack_pop(Stack);
 				ds_stack_push(Stack, -a);
 			break;
-			
 		}
+		++ProgramPointer;
 	}
 	static Render = function()
 	{
 		
 	}
 
+	#endregion
+	
 	#region Commands	
 	//Language basics
 		//Debug
 		static DebugPrint = function(Words) { CommandAddData(EventCode.DebugPrint, string(Words)); }
 		//Flow
+		static End = function()	{	CommandAdd(EventCode.End);	}
 		static Label = function(Name)
 		{
-			//Push a 0 size function as a goto label
-			ds_map_add(JumpMap, Name, ds_list_size(CommandList)); 
-			Trace("Jump",Name,"line",ds_list_size(CommandList))
-		}	
+			Function(Name, 0);
+		}
+		static Function = function(Name, Size)
+		{
+			CommandAdd(EventCode.Nop);	
+			var pos = ds_list_size(CommandList) - 1;
+			ds_map_add(JumpMap, Name, { Target : pos, Arguments : Size } ); 
+			Trace("Jump",Name, "line", pos, "Args", Size)
+		}
 		static Goto = function(Name)
 		{	
 			CommandAddData(EventCode.JumpLabel, Name);	
@@ -200,10 +293,11 @@ function EventHandler() constructor
 		}
 		static FunctionCall = function(Name)
 		{
-			CommandAdd(EventCode.NewStackFrame);
-			CommandAddData(EventCode.JumpLabel, Name);
+			//CommandAdd(EventCode.NewStackFrame);
+			CommandAddData(EventCode.JumpTo, Name);
 		}
-		static FunctionReturn = function(Size)	{ CommandAddData(EventCode.Return, Size); }
+		static Return = function(Size)	{ CommandAddData(EventCode.Return, Size); }
+		static GetArgument = function(Index)	{ CommandAddData(EventCode.GetArgument, Index);	}
 		//Stack
 		static Push = function(Value) { CommandAddData(EventCode.Push, Value); }
 		static Pop = function() { CommandAdd(EventCode.Pop); }
