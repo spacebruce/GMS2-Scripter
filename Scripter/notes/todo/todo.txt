@@ -1,0 +1,15 @@
+
+Testing
+	write some buggy programs to test debug handling
+	ooh how about a fibonacchi generator
+	
+Internal
+	Add rest of planned functions & check everythings labelled correctly
+	Catch exceptions
+	Get interrupts working
+
+Extra
+	Write a manual
+
+Think about
+	Extensibility, clean mechanism to add game specific functions
