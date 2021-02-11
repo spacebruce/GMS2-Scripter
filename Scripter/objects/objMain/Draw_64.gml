@@ -36,31 +36,91 @@ for(var i = 0; i < ds_list_size(Event.CommandList); ++i)
 
 	draw_text(20, h * (i + 2), str);
 	
-	if(thing.Command == EventCode.JumpTo || thing.Command == EventCode.Call)
+	if(!DebugReady)
 	{
-		var c = c_black;
-		switch(thing.Command)
-		{
-			case EventCode.JumpTo: c = c_blue; break;
-			case EventCode.Call:	  c = c_red;	break;
-		}
-		var target = ds_map_find_value(Event.JumpMap, data).Target;
-		var y1 = (h * (i + 2.5));
-		var x1 = 20 + string_width(str) + 5;
-		var y2 = (h * (target + 2.5));
-		draw_set_colour(c);
-		draw_line(x1,y1, x1 + 50, y1);
-		draw_line(x1+50,y1, x1+50,y2);
-		draw_arrow(x1+50,y2, x1,y2, 5);		
-		draw_set_colour(c_black);
+		DebugLineLengths[| i] = string_width(str);
 	}
 	
+	if(DebugReady)
+	{
+		if(thing.Command == EventCode.JumpTo || thing.Command == EventCode.Call)
+		{
+			var c = c_black;
+			switch(thing.Command)
+			{
+				case EventCode.JumpTo: c = c_blue; break;
+				case EventCode.Call:	  c = c_red;	break;
+			}
+			var target = ds_map_find_value(Event.JumpMap, data).Target;
+			var y1 = (h * (i + 2.5));
+			var x1 = 20 + string_width(str) + 5;
+			var y2 = (h * (target + 2.5));
+			var x2 = DebugLineLengths[| target] + 20 + 5;
+			var xmax = max(x1,x2) + 250;
+			draw_set_colour(c);
+			draw_line(x1,y1, xmax, y1);
+			draw_line(xmax,y1, xmax,y2);
+			draw_arrow(xmax,y2, x2,y2, 5);		
+			draw_set_colour(c_black);
+		}
+		if(thing.Command == EventCode.Return)
+		{
+			var inFunction = (ds_stack_size(Event.FunctionEntryPoint) > 0);
+			if(inFunction)
+			{
+				var target = ds_stack_top(Event.ReturnPointer) + 1;
+				var y1 = (h * (i + 2.5));
+				var x1 = 20 + string_width(str) + 5;
+				var y2 = (h * (target + 2.5));
+				var x2 = DebugLineLengths[| target] + 20 + 5;
+				var xmax = max(x1,x2) + 250;
+				var c = c_red;
+				draw_set_colour(c);
+				draw_line(x1,y1, xmax, y1);
+				draw_line(xmax,y1, xmax,y2);
+				draw_arrow(xmax,y2, x2,y2, 5);		
+				draw_set_colour(c_black);
+			}
+		}
+	}
 }
+DebugReady = true;
 
+//Draw cursor
 if(Event.ProgramPointer >= 0)
 {
 	var iy = h * (max(0,Event.ProgramPointer) + 2);
-	draw_triangle(2,iy+2, 18,iy+(h*0.5), 2,iy+(h-2), true)
+	var shape;	// 0 = tri, 1 = circle
+	var col;
+	switch(Event.State)
+	{
+		case EventState.Running:
+			shape = 0;
+			col = c_green;
+		break;
+		case EventState.Waiting:
+			shape = 0;
+			col = c_orange;
+		break;
+		case EventState.Finished:
+			shape = 1;
+			col = c_green;
+		break;
+		case EventState.Error:
+			shape = 1;
+			col = c_red;
+		break;
+	}
+	if(shape == 0)
+	{
+		draw_triangle_colour(2,iy+2, 18,iy+(h*0.5), 2,iy+(h-2), col,col,col, false)
+		draw_triangle(2,iy+2, 18,iy+(h*0.5), 2,iy+(h-2), true);
+	}
+	if(shape == 1)
+	{
+		draw_circle_colour(h*0.5, (iy+(h*0.5)), 8, col,col, false);
+		draw_circle(h*0.5, (iy+(h*0.5)), 8, true);
+	}
 }
 
 #endregion
@@ -85,7 +145,7 @@ draw_text(room_width/2 + 5, room_height*(1/3), "Function arguments");
 if(ds_stack_size(Event.FunctionArguments) > 0)
 {
 	var args = ds_stack_top(Event.FunctionArguments);
-	for(var i = 0; i < args; ++i)
+	for(var i = 0; i < ds_list_size(args); ++i)
 	{
 		draw_text(room_width/2 + 20, room_height*(1/3) + ((i + 1) * h), string(i) + " : " + string(args[| i]));
 	}
@@ -94,12 +154,16 @@ if(ds_stack_size(Event.FunctionArguments) > 0)
 
 #region jump map
 
-draw_text((room_width*0.5) + 5, (room_height*(2/3)), "Jump/Call map")
+draw_text((room_width*0.5) + 5, (room_height*(2/3)), "Jumps")
 var s = ds_map_find_first(Event.JumpMap);
 for(var i = 0; i < ds_map_size(Event.JumpMap); ++i)
 {
 	draw_text((room_width*0.5) + 20, (room_height*(2/3))+((i + 1) * h), string(s) + " : " + string(ds_map_find_value(Event.JumpMap,s)));
 	s = ds_map_find_next(Event.JumpMap, s);
 }
+
+#endregion
+
+#region Output log
 
 #endregion

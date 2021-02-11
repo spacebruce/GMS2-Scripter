@@ -1,14 +1,18 @@
+DebugReady = false;
+DebugLineLengths = ds_list_create();
 
 Event = new EventHandler();
 Event.DebugMode(true);
+Event.SetTick(1);
+// adding test
 
-Event.Push(100);
-Event.Push(100);
-Event.FunctionCall("addfunc");	//AddFunc(100, 100);
-//Event.PrintInteger();
+Event.Push(15);
+Event.Push(20);
+Event.FunctionCall("funcAddTwoNumbers");	//AddFunc(100, 100);
+Event.DebugStackPrint();
+
 Event.End();
-
-Event.Function("addfunc",2);		//function AddFunc(x, y) 
+Event.Function("funcAddTwoNumbers",2);		//function AddFunc(x, y) 
 Event.GetArgument(0);		
 Event.GetArgument(1);
 Event.Add();					//	return x + y

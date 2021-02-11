@@ -14,8 +14,9 @@ function EventHandler() constructor
 	}
 	enum EventCode
 	{
-		DebugPrint, End, Nop, 
-		JumpTo, NewStackFrame, DiscardStackFrame, Call,Return,
+		DebugPrint, DebugStackPrint, End, Nop, FunctionStart,
+		JumpTo, NewStackFrame, DiscardStackFrame, Call,Return, 
+		MemGet, MemSet,
 		Push, Pop, GetArgument, 
 		Increment,Decrement,
 		Add,Subtract,Divide,Multiply, FlipSign,
@@ -31,9 +32,10 @@ function EventHandler() constructor
 	ProgramPointer = 0;
 	Stack = ds_stack_create();
 	StackHistory = ds_stack_create();
-	
+	TickRate = 50;
 	ReturnPointer = ds_stack_create();
 	FunctionArguments = ds_stack_create();
+	FunctionEntryPoint = ds_stack_create();
 	
 	Interrupts = ds_list_create();
 	JumpMap = ds_map_create();
@@ -104,6 +106,7 @@ function EventHandler() constructor
 		//Store new arguments & return pointer on stack
 		ds_stack_push(FunctionArguments, args);
 		ds_stack_push(ReturnPointer, ProgramPointer);		//Return pointer
+		ds_stack_push(FunctionEntryPoint, target.Target);	//For tail call
 		//Go to function & create new stack frame
 		ProgramPointer = target.Target;
 		InternalNewStackFrame();
@@ -122,6 +125,7 @@ function EventHandler() constructor
 		//Destroy function input arguments
 		ds_list_destroy(ds_stack_top(FunctionArguments));
 		ds_stack_pop(FunctionArguments);
+		ds_stack_pop(FunctionEntryPoint);
 		//Move pointer back
 		ProgramPointer = ds_stack_pop(ReturnPointer);
 		//Return to previous stack frame
@@ -188,7 +192,7 @@ function EventHandler() constructor
 		FunctionName[? EventCode.Pop] = "Pop";	FunctionName[? EventCode.Add] = "Add";	FunctionName[? EventCode.Subtract] = "Subtract";
 		FunctionName[? EventCode.Divide] = "Divide";	FunctionName[? EventCode.Multiply] = "Multiply";	FunctionName[? EventCode.FlipSign] = "Flip Sign";
 		FunctionName[? EventCode.Increment] = "Increment";	FunctionName[? EventCode.Decrement] = "Decrement";	FunctionName[? EventCode.GetArgument] = "Push argument";
-		FunctionName[? EventCode.GetArgument] = "Get argument";
+		FunctionName[? EventCode.GetArgument] = "Get argument"; FunctionName[? EventCode.FunctionStart] = "Function Start"; FunctionName[? EventCode.DebugStackPrint] = "Debug print stack top";
 	}
 	static InternalCrashHandler = function()
 	{
@@ -242,7 +246,7 @@ function EventHandler() constructor
 		if(State != EventState.Running)
 			return;
 			
-		var ticks = 50;
+		var ticks = TickRate;
 		var running = true;
 		while(running)
 		{
@@ -257,7 +261,8 @@ function EventHandler() constructor
 		switch(Command.Command)
 		{
 		//sys
-			case EventCode.DebugPrint:	Trace(Command.Data);			break;
+			case EventCode.DebugPrint:	show_debug_message(string(Command.Data));			break;
+			case EventCode.DebugStackPrint:	show_debug_message(string(ds_stack_top(Stack)));	break;
 			case EventCode.End:			State = EventState.Finished;	break;
 			case EventCode.Nop:			/*		nah			*/			break;
 		//flow
@@ -297,6 +302,10 @@ function EventHandler() constructor
 	{
 		
 	}
+	static SetTick = function(Ticks)
+	{
+		TickRate = Ticks;
+	}
 
 	#endregion
 	
@@ -304,6 +313,7 @@ function EventHandler() constructor
 	//Language basics
 		//Debug
 		static DebugPrint = function(Words) { CommandAddData(EventCode.DebugPrint, string(Words)); }
+		static DebugStackPrint = function()	{ CommandAdd(EventCode.DebugStackPrint); }
 		//Flow
 		static End = function()	{	CommandAdd(EventCode.End);	}
 		static Label = function(Name)
@@ -312,7 +322,7 @@ function EventHandler() constructor
 		}
 		static Function = function(Name, Size)
 		{
-			CommandAdd(EventCode.Nop);	
+			CommandAddData(EventCode.FunctionStart, Size);	
 			var pos = ds_list_size(CommandList) - 1;
 			ds_map_add(JumpMap, Name, { Target : pos, Arguments : Size } ); 
 			InternalDebug("Jump register",Name, "line", pos, "Args", Size)
@@ -334,6 +344,15 @@ function EventHandler() constructor
 		}
 		static Return = function(Size)	{ CommandAddData(EventCode.Return, Size); }
 		static GetArgument = function(Index)	{ CommandAddData(EventCode.GetArgument, Index);	}
+		//Memory
+		static MemorySet = function(Index)
+		{
+			CommandAddData(EventCode.MemSet, Index);
+		}
+		static MemoryGet = function(Index)
+		{
+			CommandAddData(EventCode.MemGet, Index);
+		}
 		//Stack
 		static Push = function(Value) { CommandAddData(EventCode.Push, Value); }
 		static Pop = function() { CommandAdd(EventCode.Pop); }
@@ -356,69 +375,24 @@ function EventHandler() constructor
 }
 
 /*
-//	Sample script, non indicative
-EventBossSaysMeanThings = function()
-{
-	var Handslam = function()
-	{
-		Handler.SpriteLoad(sprBossHands);		//Load hand sprite 
-		Handler.SpriteSetRegion(WorldRegion.Desk);	//Run in desk space
-		Handler.PushValue(WorldGetWidth());	//get width of world, push to stack
-		Handler.DivideConst(2);					//divide by 2 for screen mid
-		Handler.StackSaveScratch(0);		//save 4 later
-		Handler.SpriteGetHeight();			//Get height of hand sprite
-		Handler.FlipSign();					//negate it so it's off top of screen
-		Handler.SetSpritePosition();	//Pop X and Y values from stack
-		Handler.StackLoadScratch(0);	//load x from earlier
-		Handler.PushValue(0);			//top of screen
-		Handler.SetSpriteTweenTo();		//Start animation sequence to stack position
-		Handler.PushValue(0.2);			//0.2 seconds
-		Handler.WaitAnimation();		//wait until hands moved to tween position
-		Handler.PlaySound(sfxDeskslam);
-		Handler.Screenshake();
-	}
-	var LOOKUP = function()
-	{
-		Handslam();
-		Handler.Say("PAY ATTENTION TO ME, PARKER");
-	}
-	var PollView = function()
-	{
-		Handler.GetView();				//get view mode and push to stack
-		Handler.Compare(WorldRegion.Office);	//Is value on stack == office
-		Handler.SetMemory(0);	//Push comparison to mem 0
-		Handler.DisableInput();	//Stop player from interacting with world
-	}
-	Handler.SpriteLoad(sprBossLoom, 0);				//Load boss belly sprite
-	Handler.SpriteSetRegion(WorldRegion.Office);	//set it to draw in the office view
-	Handler.SpriteLoad(sprBossLoom, 1);				//load boss mugshot
-	Handler.SpriteSetRegion(WorldRegion.Ceiling);	//up view
+Event = new EventHandler();
+Event.DebugMode(true);
+Event.SetTick(1);
+
+Adding commands - 
+	Event.Push(15);
+	Event.Push(20);
+	Event.FunctionCall("funcAddTwoNumbers");	//AddFunc(100, 100);
+	Event.DebugStackPrint();
+
+	Event.End();
+	Event.Function("funcAddTwoNumbers",2);		//function AddFunc(x, y) 
+	Event.GetArgument(0);		
+	Event.GetArgument(1);
+	Event.Add();					//	return x + y
+	Event.Return(1);
 	
-	Handler();		//Run handslam routine
-	
-	Handler.Say("PARKER.");
-	Handler.WaitTextbox();
-	Handler.PushInterrupt(HandlerInterrupt.Timer, 0, 4, LOOKUP);		//Slam hands on desk every 4 seconds until player looks up
-	Handler.PushInterrupt(HandlerInterrupt.Timer, 1, 0.1, PollView);	//run every 0.1 second until player looks up
-	
-	Handler.SetValue(0, false);	//set mem location 0 to false
-	Handler.WaitValue(0, true);	//wait until it's true, as set by PollView interrupt
-	
-	Handler.PopInterrupt(0);	//delete interrupts
-	Handler.PopInterrupt(1);
-	
-	Handler.ClearTextbox();	//kill any PAY ATTENTION TO ME messages
-	
-	Handler.Say("LOOK AT MY FACE WHILE TALKING TO YOU");
-	Handler.SetView(WorldRegion.Ceiling);	//Change to looking up
-	Handler.WaitView();	//wait until view shifted until continuing
-	
-	Handler.Say("gobble gobble gobble");
-	Handler.Say("Pictures of SPIDERMAN");
-	Handler.Say("something something");
-	
-	Handler.ClearSprites();	//Delete sprites
-	Handler.SetView(WorldRegion.Office);
-	Handler.EnableInput();	//Give player control back
-}
+Run - 
+	Event.Update(1);
+
 */
