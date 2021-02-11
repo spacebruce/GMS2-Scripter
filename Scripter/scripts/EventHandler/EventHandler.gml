@@ -331,12 +331,6 @@ function EventHandler() constructor
 		{	
 			CommandAddData(EventCode.JumpLabel, Name);	
 		}
-		static FunctionStart = function(Name, Arguments)
-		{ 
-			var position = ds_list_size(CommandList);
-			ds_map_add(JumpMap, Name, position); 
-			return position;
-		}
 		static FunctionCall = function(Name)
 		{
 			//CommandAdd(EventCode.NewStackFrame);
