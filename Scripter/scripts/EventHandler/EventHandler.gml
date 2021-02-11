@@ -78,6 +78,7 @@ function EventHandler() constructor
 	}
 	static InternalGoto = function(Name)
 	{		
+		InternalDebug("goto", Name);
 		var target = ds_map_find_value(JumpMap, Name);
 		if(is_undefined(target))
 			throw("Bad jump, can't find label " + string(Name));
@@ -85,20 +86,20 @@ function EventHandler() constructor
 	}
 	static InternalFunctionCall = function(Name)
 	{
-		Trace("Jumping to",Name);
+		InternalDebug("Jumping to",Name);
 		//Find target and get argument signature
 		var target = ds_map_find_value(JumpMap, Name);
 		if(is_undefined(target))
 			throw("Bad jump, can't find label " + string(Name));
 		//Carry arguments over to new stack frame
 		var argNum = target.Arguments;
-		Trace(Name, "takes", argNum, "Arguments");
+		InternalDebug(Name, "takes", argNum, "Arguments");
 		var args = ds_list_create();
 		for(var i = 0; i < argNum; ++i)
 		{
 			var a = ds_stack_pop(Stack);
 			ds_list_add(args,  a);
-			Trace("arg",i,"a");
+			InternalDebug("arg",i,"a");
 		}
 		//Store new arguments & return pointer on stack
 		ds_stack_push(FunctionArguments, args);
@@ -111,12 +112,12 @@ function EventHandler() constructor
 	{
 		//Save return values
 		var returnStack = ds_stack_create();
-		Trace("Returning",Size);
+		InternalDebug("Returning",Size);
 		repeat(Size)
 		{
 			var s = ds_stack_pop(Stack);
 			ds_stack_push(returnStack, s);
-			Trace("out",s);
+			InternalDebug("out",s);
 		}
 		//Destroy function input arguments
 		ds_list_destroy(ds_stack_top(FunctionArguments));
@@ -130,41 +131,48 @@ function EventHandler() constructor
 		{
 			var s = ds_stack_pop(returnStack);
 			ds_stack_push(Stack, s);
-			Trace("in",s);
+			InternalDebug("in",s);
 		}
 		//cleanup & move on
 		ds_stack_destroy(returnStack);
 	}
 	static InternalMemorySet = function(Address, Value)
 	{
+		InternalDebug("memset",Address,Value);	
 		if(array_length(Memory) < Address)
 			array_resize(Memory, Address);
 		Memory[Address] = Value;
 	}
 	static InternalMemoryGet = function(Address)
 	{
+		InternalDebug("memget",Address);
+	
 		if(array_length(Memory) < Address)
 			throw("Memory read out of bounds");
 		return Memory[Address];
 	}
 	static InternalMemoryClear = function()
 	{
+		InternalDebug("memclr");
 		for(var i = 0; i < array_length(Memory); ++i)
 			Memory[i] = undefined;
 		array_resize(Memory, 0);
 	}
 	static InternalNewStackFrame = function()
 	{
+		InternalDebug("New stack");
 		ds_stack_push(StackHistory, Stack);
 		Stack = ds_stack_create();
 	}
 	static InternalDiscardStackFrame = function()
 	{
+		InternalDebug("old stack");
 		ds_stack_destroy(Stack);
 		Stack = ds_stack_pop(StackHistory);
 	}
 	static InternalGetArgument = function(Index)
 	{
+		InternalDebug("arg fetch",Index);
 		var list = ds_stack_top(FunctionArguments);
 		return list[| Index];
 	}
@@ -184,11 +192,27 @@ function EventHandler() constructor
 	}
 	static InternalCrashHandler = function()
 	{
-		Trace("Script Crash!!!");
-		Trace("Point", ProgramPointer);
-		Trace("Stack", ds_stack_write(Stack));
-		Trace("Memory", Memory);
+		DebugMode(true);	//Flip debug mode on so we get instruction labels & debug print
+		InternalDebug("Script Crash!!!");
+		InternalDebug("Point", ProgramPointer);
+		InternalDebug("Stack", ds_stack_write(Stack));
+		InternalDebug("Memory", Memory);
 	}
+	static InternalDebug = function()
+	{
+		if(Debug)
+		{
+			//queues debug messages
+			var r = string("out - "), i;
+			for (i = 0; i < argument_count; i++)
+			{
+			    r += string(argument[i])
+				if(i < (argument_count-1)) r += ", "
+			}
+			show_debug_message(r)
+		}
+	}
+
 	static CommandAdd = function(Type)
 	{
 		ds_list_add(CommandList, { Command : Type, Data : undefined });	
@@ -202,12 +226,13 @@ function EventHandler() constructor
 	#region Public
 	static DebugMode = function(State)
 	{
+		Debug = true;	//so InternalDebug works
+		InternalDebug("Debug mode", Debug ? "On": "Off");
 		Debug = State;
 		if(!NamesDefined)
 		{
 			InternalNameLookup();
 		}
-		Trace("Debug mode", Debug ? "On": "Off");
 	}
 	static Update = function(Timestep)
 	{
@@ -216,7 +241,18 @@ function EventHandler() constructor
 		//If not ready to do something, halt
 		if(State != EventState.Running)
 			return;
-		
+			
+		var ticks = 50;
+		var running = true;
+		while(running)
+		{
+			SingleStep();
+			--ticks;
+			running = (ticks > 0) && (State == EventState.Running)
+		}
+	}
+	static SingleStep = function()
+	{
 		var Command = ds_list_find_value(CommandList, ProgramPointer);
 		switch(Command.Command)
 		{
@@ -279,7 +315,7 @@ function EventHandler() constructor
 			CommandAdd(EventCode.Nop);	
 			var pos = ds_list_size(CommandList) - 1;
 			ds_map_add(JumpMap, Name, { Target : pos, Arguments : Size } ); 
-			Trace("Jump",Name, "line", pos, "Args", Size)
+			InternalDebug("Jump register",Name, "line", pos, "Args", Size)
 		}
 		static Goto = function(Name)
 		{	
