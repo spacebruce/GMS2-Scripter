@@ -8,22 +8,43 @@ function EventHandler() constructor
 	State = EventState.Running;
 	
 	//plz yoyo give us namespaces
-	enum EventInterrupt
+	enum EventInterruptType
 	{
 		Timer, UI, 
 	}
 	enum EventCode
 	{
 		DebugPrint, DebugStackPrint, End, Nop, FunctionStart,
+		InterruptRegister, InterruptDelete, 
 		JumpTo, NewStackFrame, DiscardStackFrame, Call,Return, 
-		MemGet, MemSet,
-		Push, Pop, GetArgument, 
+		MemGet, MemSet, 
+		Push, Pop, Swap, GetArgument, 
 		Increment,Decrement,
 		Add,Subtract,Divide,Multiply, FlipSign,
 	}
 	enum EventState 
 	{
 		Running, Error, Waiting, Finished, 
+	}
+	static EventInterrupt = function(type, value, funct) constructor
+	{
+		Type = type;
+		Function = funct;
+		Reset = false;
+		
+		switch(Type)
+		{
+			case EventInterruptType.Timer:
+				Value = { Time : value }
+			break;
+		}
+		SetReset = function(yeah)
+		{
+			Reset = yeah;
+		}
+		Trigger = function(Context)
+		{
+		}
 	}
 	
 	//Runtime
@@ -64,38 +85,65 @@ function EventHandler() constructor
 	}
 	
 	#region Internal
-	static InternalPollInterrupts = function(Timestep)
+	static InternalInterruptPoll = function(Timestep)
 	{
-		for(var i = 0; i < ds_list_size(Interrupts); ++i)
+		InternalDebug(Timestep);
+		for(var i = 0; i < array_length(Interrupts); ++i)
 		{
-			var interrupt = Interrupts[| i];
+			var interrupt = Interrupts[i];
+			if(interrupt == undefined)
+				continue;
+				
 			var trigger = false;
 			switch(interrupt.Type)
 			{
-				case EventInterrupt.Timer:
-					interrupt.Timer -= Timestep;
-					if(interrupt.Timer <= 0)
+				case EventInterruptType.Timer:
+					var time = interrupt.Value.Time;
+					InternalDebug("Interrupt",interrupt);
+					interrupt.Value.Time = (time - Timestep);
+					if(interrupt.Value.Time <= 0)
 					{
+						InternalDebug("FIRE!");
 						trigger = true;
-						interrupt.Timer = interrupt.TimerStart;	//Repeat
+						if(interrupt.Reset)
+						{
+							interrupt.Value.Time = interrupt.TimerStart;	//Repeat
+						}
 					}
 				break;
-				case EventInterrupt.UI:
+				case EventInterruptType.UI:
 					throw("UI Interrupt Not implemented");
 				break;
 			}
 			if(trigger)
 			{
-				if(is_method(interrupt.Function))	//if it's a GM function, run it
+				if(is_method(interrupt.Function))	//if it's a GM function, execute it directly
 				{
 					interrupt.Function();
 				}
+				else if (is_string(interrupt.Function))
+				{
+					InternalFunctionCall(interrupt.Function);
+				}
 				else
 				{
-					InternalCallFunction(interrupt.Function);
+					State = EventState.Error;
+					throw InternalDebug("Interrupt handle error - can't make sense of this function signature chief", interrupt.Function);
+				}
+				if(!interrupt.Reset)
+				{
+					InternalInterruptDelete(i);
 				}
 			}
 		}
+	}
+	static InternalInterruptRegister = function(Slot, Interrupt)
+	{
+		Interrupts[Slot] = Interrupt;
+	}
+	static InternalInterruptDelete = function(Slot)
+	{
+		Interrupts[Slot] = undefined;
 	}
 	static InternalGoto = function(Name)
 	{		
@@ -212,6 +260,8 @@ function EventHandler() constructor
 		FunctionName[? EventCode.Divide] = "Divide";	FunctionName[? EventCode.Multiply] = "Multiply";	FunctionName[? EventCode.FlipSign] = "Flip Sign";
 		FunctionName[? EventCode.Increment] = "Increment";	FunctionName[? EventCode.Decrement] = "Decrement";	FunctionName[? EventCode.GetArgument] = "Push argument";
 		FunctionName[? EventCode.GetArgument] = "Get argument"; FunctionName[? EventCode.FunctionStart] = "Function Start"; FunctionName[? EventCode.DebugStackPrint] = "Debug print stack top";
+		FunctionName[? EventCode.Swap] = "Swap";
+		FunctionName[? EventCode.InterruptDelete] = "Interrupt delete";	FunctionName[? EventCode.InterruptRegister] = "Interrupt register";
 	}
 	static InternalCrashHandler = function(Exception)
 	{
@@ -224,7 +274,7 @@ function EventHandler() constructor
 	}
 	static InternalDebug = function()
 	{
-		if(Debug)
+		if(Debug || (State == EventState.Error))
 		{
 			//queues debug messages
 			var r = string("out - "), i;
@@ -261,7 +311,7 @@ function EventHandler() constructor
 	static Update = function(Timestep)
 	{
 		//Handle timers, delays, interrupts
-		InternalPollInterrupts(Timestep);
+		InternalInterruptPoll(Timestep);
 		//If not ready to do something, halt
 		if(State != EventState.Running)
 			return;
@@ -278,7 +328,6 @@ function EventHandler() constructor
 	static SingleStep = function()
 	{
 		var Command = ds_list_find_value(CommandList, ProgramPointer);
-		
 		try
 		{
 			switch(Command.Command)
@@ -294,9 +343,23 @@ function EventHandler() constructor
 				case EventCode.DiscardStackFrame:	InternalDiscardStackFrame();	break;
 				case EventCode.Return:				InternalFunctionReturn(Command.Data);		break;
 				case EventCode.GetArgument:	ds_stack_push(Stack, InternalGetArgument(Command.Data));	break;
+			//Interrupts
+				case EventCode.InterruptRegister:
+					var interrupt = Command.Data;	//[Slot, Type,Trigger, Function]
+					InternalInterruptRegister(interrupt[0], new EventInterrupt(interrupt[1],interrupt[2],interrupt[3]));
+				break;
+				case EventCode.InterruptDelete:
+					InternalInterruptDelete(Command.Data);
+				break;
 			//Stack
 				case EventCode.Push:		ds_stack_push(Stack, Command.Data);	break;
 				case EventCode.Pop:			ds_stack_pop(Stack);				break;
+				case EventCode.Swap:		
+					var a = ds_stack_pop(Stack);
+					var b = ds_stack_pop(Stack); 
+					ds_stack_push(Stack, a);
+					ds_stack_push(Stack, b);
+				break;
 			//Numbers
 				case EventCode.Add:
 					var a = ds_stack_pop(Stack);	var b = ds_stack_pop(Stack);
@@ -319,7 +382,11 @@ function EventHandler() constructor
 					ds_stack_push(Stack, -a);
 				break;
 			}
-			++ProgramPointer;
+			
+			if (State != EventState.Finished)
+			{
+				++ProgramPointer;
+			}
 		}
 		catch(Exception)
 		{
@@ -366,6 +433,15 @@ function EventHandler() constructor
 		}
 		static Return = function(Size)	{ CommandAddData(EventCode.Return, Size); }
 		static GetArgument = function(Index)	{ CommandAddData(EventCode.GetArgument, Index);	}
+		//Interrupts
+		static InterruptRegister = function(Slot,Type,Trigger,Function)
+		{
+			CommandAddData(EventCode.InterruptRegister, [Slot, Type,Trigger, Function]);
+		}
+		static InterruptDelete = function(Slot)
+		{
+			CommandAddData(EventCode.InterruptDelete, Slot);
+		}
 		//Memory
 		static MemorySet = function(Index)
 		{
@@ -378,6 +454,7 @@ function EventHandler() constructor
 		//Stack
 		static Push = function(Value) { CommandAddData(EventCode.Push, Value); }
 		static Pop = function() { CommandAdd(EventCode.Pop); }
+		static Swap = function() { CommandAdd(EventCode.Swap); }
 		static PopMultiple = function(Count) { repeat(Count) { CommandAdd(EventCode.Pop); } }
 		//Arithmetic
 		static Add = function() { CommandAdd(EventCode.Add); }

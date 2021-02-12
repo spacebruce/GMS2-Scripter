@@ -1,12 +1,14 @@
-
+done
+	Catch exceptions
+	Get interrupts working
+	
 Testing
 	write some buggy programs to test debug handling
 	ooh how about a fibonacchi generator
 	
 Internal
 	Add rest of planned functions & check everythings labelled correctly
-	Catch exceptions
-	Get interrupts working
+	Add more interrupt types, check memory model works
 
 Extra
 	Write a manual
