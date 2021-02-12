@@ -4,7 +4,7 @@ function EventHandler() constructor
 	CommandList = ds_list_create();
 	//Textbox = new TextboxHandler();
 	//SpriteHandler = new SpriteHandler();
-	Destroy = function() { /* delete Textbox; */ }
+
 	State = EventState.Running;
 	
 	//plz yoyo give us namespaces
@@ -43,6 +43,25 @@ function EventHandler() constructor
 	
 	FunctionName = ds_map_create();
 	NamesDefined = false;
+	
+	Destroy = function()
+	{
+		/*	did i miss anything	*/
+		ds_list_destroy(CommandList);
+		ds_stack_destroy(Stack);
+		while(ds_stack_size(StackHistory) > 0)
+			ds_stack_destroy(ds_stack_pop(StackHistory));
+		ds_stack_destroy(StackHistory); 
+		ds_stack_destroy(ReturnPointer);
+		while(ds_stack_size(FunctionArguments) > 0)
+			ds_list_destroy(ds_stack_pop(FunctionArguments));
+		ds_stack_destroy(FunctionArguments);
+		ds_stack_destroy(FunctionEntryPoint);
+		ds_list_destroy(Interrupts);
+		ds_map_destroy(JumpMap);
+		ds_map_destroy(FunctionName);
+		Memory = -1;
+	}
 	
 	#region Internal
 	static InternalPollInterrupts = function(Timestep)
