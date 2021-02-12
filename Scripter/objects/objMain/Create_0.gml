@@ -3,14 +3,16 @@ DebugLineLengths = ds_list_create();
 
 Event = new EventHandler();
 Event.DebugMode(true);
+
 Event.SetTick(1);
 // adding test
 
 Event.Push(15);
 Event.Push(20);
 //Add 1 to the current stack in one seconds time
-Event.InterruptRegister(0, EventInterruptType.Timer, 1.0 , "PushOne");	
+Event.InterruptRegister(EventInterruptType.Timer, 1.0 , "PushOne");	
 Event.Swap();
+Event.Wait(3);
 Event.FunctionCall("funcAddTwoNumbers");	//AddFunc(100, 100);
 Event.DebugStackPrint();
 Event.End();

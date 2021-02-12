@@ -17,14 +17,18 @@ function EventHandler() constructor
 		DebugPrint, DebugStackPrint, End, Nop, FunctionStart,
 		InterruptRegister, InterruptDelete, 
 		JumpTo, NewStackFrame, DiscardStackFrame, Call,Return, 
-		MemGet, MemSet, 
-		Push, Pop, Swap, GetArgument, 
+		MemGet, MemSet, Push, Pop, Swap, GetArgument, 
+		WaitTimer, WaitMemory, 
 		Increment,Decrement,
 		Add,Subtract,Divide,Multiply, FlipSign,
 	}
 	enum EventState 
 	{
 		Running, Error, Waiting, Finished, 
+	}
+	enum EventWaitMode
+	{
+		None, Timer, Memory, 
 	}
 	static EventInterrupt = function(type, value, funct) constructor
 	{
@@ -49,6 +53,9 @@ function EventHandler() constructor
 	
 	//Runtime
 	State = EventState.Running;
+	WaitMode = EventWaitMode.None;
+	WaitTimer = -1;
+	WaitMemory = [0,0];
 	Debug = false;
 	ProgramPointer = 0;
 	Stack = ds_stack_create();
@@ -87,10 +94,9 @@ function EventHandler() constructor
 	#region Internal
 	static InternalInterruptPoll = function(Timestep)
 	{
-		InternalDebug(Timestep);
-		for(var i = 0; i < array_length(Interrupts); ++i)
+		for(var i = 0; i < ds_list_size(Interrupts); ++i)
 		{
-			var interrupt = Interrupts[i];
+			var interrupt = Interrupts[| i];
 			if(interrupt == undefined)
 				continue;
 				
@@ -99,11 +105,10 @@ function EventHandler() constructor
 			{
 				case EventInterruptType.Timer:
 					var time = interrupt.Value.Time;
-					InternalDebug("Interrupt",interrupt);
-					interrupt.Value.Time = (time - Timestep);
+					interrupt.Value.Time -= Timestep;
 					if(interrupt.Value.Time <= 0)
 					{
-						InternalDebug("FIRE!");
+						InternalDebug("Fire interrupt", interrupt);
 						trigger = true;
 						if(interrupt.Reset)
 						{
@@ -132,18 +137,20 @@ function EventHandler() constructor
 				}
 				if(!interrupt.Reset)
 				{
-					InternalInterruptDelete(i);
+					delete interrupt;	//InternalInterruptDelete(i);
+					ds_list_delete(Interrupts, i);
 				}
 			}
 		}
 	}
-	static InternalInterruptRegister = function(Slot, Interrupt)
+	static InternalInterruptRegister = function(Interrupt)
 	{
-		Interrupts[Slot] = Interrupt;
+		ds_list_add(Interrupts, Interrupt);
 	}
 	static InternalInterruptDelete = function(Slot)
 	{
-		Interrupts[Slot] = undefined;
+		//Interrupts[| Slot] = undefined;
+		throw "can't delete interrupts, needs rethink"
 	}
 	static InternalGoto = function(Name)
 	{		
@@ -260,12 +267,14 @@ function EventHandler() constructor
 		FunctionName[? EventCode.Divide] = "Divide";	FunctionName[? EventCode.Multiply] = "Multiply";	FunctionName[? EventCode.FlipSign] = "Flip Sign";
 		FunctionName[? EventCode.Increment] = "Increment";	FunctionName[? EventCode.Decrement] = "Decrement";	FunctionName[? EventCode.GetArgument] = "Push argument";
 		FunctionName[? EventCode.GetArgument] = "Get argument"; FunctionName[? EventCode.FunctionStart] = "Function Start"; FunctionName[? EventCode.DebugStackPrint] = "Debug print stack top";
-		FunctionName[? EventCode.Swap] = "Swap";
+		FunctionName[? EventCode.Swap] = "Swap";	FunctionName[? EventCode.WaitTimer] = "Wait timer";	FunctionName[? EventCode.WaitMemory] = "Wait Memory";
 		FunctionName[? EventCode.InterruptDelete] = "Interrupt delete";	FunctionName[? EventCode.InterruptRegister] = "Interrupt register";
 	}
 	static InternalCrashHandler = function(Exception)
 	{
-		DebugMode(true);	//Flip debug mode on so we get instruction labels & debug print
+		State = EventState.Error;
+		if(!Debug)
+			DebugMode(true);	//Flip debug mode on so we get instruction labels & debug print
 		InternalDebug("Script Crash!!!");
 		InternalDebug("Point", ProgramPointer);
 		InternalDebug("Stack", ds_stack_write(Stack));
@@ -310,17 +319,42 @@ function EventHandler() constructor
 	}
 	static Update = function(Timestep)
 	{
-		//Handle timers, delays, interrupts
-		InternalInterruptPoll(Timestep);
 		//If not ready to do something, halt
-		if(State != EventState.Running)
+		if(State == EventState.Finished || State == EventState.Error)
 			return;
 			
+		//Handle timers, delays, interrupts
+		InternalInterruptPoll(Timestep);
+		if(State == EventState.Waiting)
+		{
+			switch(WaitMode)
+			{
+				case EventWaitMode.Timer:
+					WaitTimer -= Timestep;
+					if(WaitTimer < 0)
+						State = EventState.Running;
+				break;
+				case EventWaitMode.Memory:
+					if(ds_list_size(Interrupts))
+					{
+						throw "uhhh, program might be stuck without outside intervention";
+					}
+					if(InternalMemoryGet(WaitMemory[0],WaitMemory[1]))
+					{
+						State = EventState.Running;
+					}
+				break;
+			}
+		}
+		
+		//If not ready to do something, halt
+		if(State != EventState.Running)
+			return;	
 		var ticks = TickRate;
 		var running = true;
 		while(running)
 		{
-			SingleStep();
+			var quit = SingleStep();
 			--ticks;
 			running = (ticks > 0) && (State == EventState.Running)
 		}
@@ -330,12 +364,13 @@ function EventHandler() constructor
 		var Command = ds_list_find_value(CommandList, ProgramPointer);
 		try
 		{
+			var advance = true;
 			switch(Command.Command)
 			{
 			//sys
 				case EventCode.DebugPrint:	show_debug_message(string(Command.Data));			break;
 				case EventCode.DebugStackPrint:	show_debug_message(string(ds_stack_top(Stack)));	break;
-				case EventCode.End:			State = EventState.Finished;	break;
+				case EventCode.End:			State = EventState.Finished;	advance = false;	break;
 				case EventCode.Nop:			/*		nah			*/			break;
 			//flow
 				case EventCode.JumpTo:			InternalFunctionCall(Command.Data);		break;
@@ -343,10 +378,19 @@ function EventHandler() constructor
 				case EventCode.DiscardStackFrame:	InternalDiscardStackFrame();	break;
 				case EventCode.Return:				InternalFunctionReturn(Command.Data);		break;
 				case EventCode.GetArgument:	ds_stack_push(Stack, InternalGetArgument(Command.Data));	break;
+			//Wait locks
+				case EventCode.WaitTimer:
+					State = EventState.Waiting;
+					WaitMode = EventWaitMode.Timer;
+				break;
+				case EventCode.WaitMemory:
+					State = EventState.Waiting;
+					WaitMode = EventWaitMode.Memory;
+				break;
 			//Interrupts
 				case EventCode.InterruptRegister:
 					var interrupt = Command.Data;	//[Slot, Type,Trigger, Function]
-					InternalInterruptRegister(interrupt[0], new EventInterrupt(interrupt[1],interrupt[2],interrupt[3]));
+					InternalInterruptRegister(new EventInterrupt(interrupt[0],interrupt[1],interrupt[2]));
 				break;
 				case EventCode.InterruptDelete:
 					InternalInterruptDelete(Command.Data);
@@ -383,7 +427,7 @@ function EventHandler() constructor
 				break;
 			}
 			
-			if (State != EventState.Finished)
+			if (advance)
 			{
 				++ProgramPointer;
 			}
@@ -434,14 +478,17 @@ function EventHandler() constructor
 		static Return = function(Size)	{ CommandAddData(EventCode.Return, Size); }
 		static GetArgument = function(Index)	{ CommandAddData(EventCode.GetArgument, Index);	}
 		//Interrupts
-		static InterruptRegister = function(Slot,Type,Trigger,Function)
+		static InterruptRegister = function(Type,Trigger,Function)
 		{
-			CommandAddData(EventCode.InterruptRegister, [Slot, Type,Trigger, Function]);
+			CommandAddData(EventCode.InterruptRegister, [Type,Trigger, Function]);
 		}
 		static InterruptDelete = function(Slot)
 		{
 			CommandAddData(EventCode.InterruptDelete, Slot);
 		}
+		//Wait locks
+		static Wait = function(Seconds)	{	CommandAddData(EventCode.WaitTimer, Seconds);	}
+		static WaitMemory = function(Memory, Value)	{	CommandAddData(EventCode.WaitMemory, [ Memory, Value ]); }
 		//Memory
 		static MemorySet = function(Index)
 		{
