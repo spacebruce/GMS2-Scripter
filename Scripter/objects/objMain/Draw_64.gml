@@ -49,14 +49,14 @@ for(var i = 0; i < ds_list_size(Event.CommandList); ++i)
 			switch(thing.Command)
 			{
 				case EventCode.JumpTo: c = c_blue; break;
-				case EventCode.Call:	  c = c_red;	break;
+				case EventCode.Call: c = c_red;	break;
 			}
 			var target = ds_map_find_value(Event.JumpMap, data).Target;
 			var y1 = (h * (i + 2.5));
 			var x1 = 20 + string_width(str) + 5;
 			var y2 = (h * (target + 2.5));
 			var x2 = DebugLineLengths[| target] + 20 + 5;
-			var xmax = max(x1,x2) + 250;
+			var xmax = min(max(x1,x2) + 250, (room_width / 2) - 10);
 			draw_set_colour(c);
 			draw_line(x1,y1, xmax, y1);
 			draw_line(xmax,y1, xmax,y2);

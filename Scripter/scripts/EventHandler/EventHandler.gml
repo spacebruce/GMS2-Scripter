@@ -194,13 +194,14 @@ function EventHandler() constructor
 		FunctionName[? EventCode.Increment] = "Increment";	FunctionName[? EventCode.Decrement] = "Decrement";	FunctionName[? EventCode.GetArgument] = "Push argument";
 		FunctionName[? EventCode.GetArgument] = "Get argument"; FunctionName[? EventCode.FunctionStart] = "Function Start"; FunctionName[? EventCode.DebugStackPrint] = "Debug print stack top";
 	}
-	static InternalCrashHandler = function()
+	static InternalCrashHandler = function(Exception)
 	{
 		DebugMode(true);	//Flip debug mode on so we get instruction labels & debug print
 		InternalDebug("Script Crash!!!");
 		InternalDebug("Point", ProgramPointer);
 		InternalDebug("Stack", ds_stack_write(Stack));
 		InternalDebug("Memory", Memory);
+		InternalDebug(Exception.message, Exception.longMessage, Exception.script, Exception.stacktrace);
 	}
 	static InternalDebug = function()
 	{
@@ -258,45 +259,53 @@ function EventHandler() constructor
 	static SingleStep = function()
 	{
 		var Command = ds_list_find_value(CommandList, ProgramPointer);
-		switch(Command.Command)
+		
+		try
 		{
-		//sys
-			case EventCode.DebugPrint:	show_debug_message(string(Command.Data));			break;
-			case EventCode.DebugStackPrint:	show_debug_message(string(ds_stack_top(Stack)));	break;
-			case EventCode.End:			State = EventState.Finished;	break;
-			case EventCode.Nop:			/*		nah			*/			break;
-		//flow
-			case EventCode.JumpTo:			InternalFunctionCall(Command.Data);		break;
-			case EventCode.NewStackFrame:		InternalNewStackFrame();		break;
-			case EventCode.DiscardStackFrame:	InternalDiscardStackFrame();	break;
-			case EventCode.Return:				InternalFunctionReturn(Command.Data);		break;
-			case EventCode.GetArgument:	ds_stack_push(Stack, InternalGetArgument(Command.Data));	break;
-		//Stack
-			case EventCode.Push:		ds_stack_push(Stack, Command.Data);	break;
-			case EventCode.Pop:			ds_stack_pop(Stack);				break;
-		//Numbers
-			case EventCode.Add:
-				var a = ds_stack_pop(Stack);	var b = ds_stack_pop(Stack);
-				ds_stack_push(Stack, b + a);
-			break;
-			case EventCode.Subtract:
-				var a = ds_stack_pop(Stack);	var b = ds_stack_pop(Stack);
-				ds_stack_push(Stack, b - a);
-			break;
-			case EventCode.Divide:
-				var a = ds_stack_pop(Stack);	var b = ds_stack_pop(Stack);
-				ds_stack_push(Stack, b / a);
-			break;
-			case EventCode.Multiply:
-				var a = ds_stack_pop(Stack);	var b = ds_stack_pop(Stack);
-				ds_stack_push(Stack, b * a);
-			break;
-			case EventCode.FlipSign:
-				var a = ds_stack_pop(Stack);
-				ds_stack_push(Stack, -a);
-			break;
+			switch(Command.Command)
+			{
+			//sys
+				case EventCode.DebugPrint:	show_debug_message(string(Command.Data));			break;
+				case EventCode.DebugStackPrint:	show_debug_message(string(ds_stack_top(Stack)));	break;
+				case EventCode.End:			State = EventState.Finished;	break;
+				case EventCode.Nop:			/*		nah			*/			break;
+			//flow
+				case EventCode.JumpTo:			InternalFunctionCall(Command.Data);		break;
+				case EventCode.NewStackFrame:		InternalNewStackFrame();		break;
+				case EventCode.DiscardStackFrame:	InternalDiscardStackFrame();	break;
+				case EventCode.Return:				InternalFunctionReturn(Command.Data);		break;
+				case EventCode.GetArgument:	ds_stack_push(Stack, InternalGetArgument(Command.Data));	break;
+			//Stack
+				case EventCode.Push:		ds_stack_push(Stack, Command.Data);	break;
+				case EventCode.Pop:			ds_stack_pop(Stack);				break;
+			//Numbers
+				case EventCode.Add:
+					var a = ds_stack_pop(Stack);	var b = ds_stack_pop(Stack);
+					ds_stack_push(Stack, b + a);
+				break;
+				case EventCode.Subtract:
+					var a = ds_stack_pop(Stack);	var b = ds_stack_pop(Stack);
+					ds_stack_push(Stack, b - a);
+				break;
+				case EventCode.Divide:
+					var a = ds_stack_pop(Stack);	var b = ds_stack_pop(Stack);
+					ds_stack_push(Stack, b / a);
+				break;
+				case EventCode.Multiply:
+					var a = ds_stack_pop(Stack);	var b = ds_stack_pop(Stack);
+					ds_stack_push(Stack, b * a);
+				break;
+				case EventCode.FlipSign:
+					var a = ds_stack_pop(Stack);
+					ds_stack_push(Stack, -a);
+				break;
+			}
+			++ProgramPointer;
 		}
-		++ProgramPointer;
+		catch(Exception)
+		{
+			InternalCrashHandler(Exception);
+		}
 	}
 	static Render = function()
 	{
@@ -318,7 +327,7 @@ function EventHandler() constructor
 		static End = function()	{	CommandAdd(EventCode.End);	}
 		static Label = function(Name)
 		{
-			Function(Name, 0);
+			Function(Name, 0);	/*	goto labels are 0 argument functions. Technically you could 'goto' a function, but i'd prefer if you didn't.	*/
 		}
 		static Function = function(Name, Size)
 		{
