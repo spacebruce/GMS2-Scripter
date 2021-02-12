@@ -354,17 +354,18 @@ function EventHandler() constructor
 		var running = true;
 		while(running)
 		{
-			var quit = SingleStep();
+			var advance = SingleStep();	//returns "not jammed"
 			--ticks;
-			running = (ticks > 0) && (State == EventState.Running)
+			running = advance && (ticks > 0) && (State == EventState.Running)
 		}
 	}
 	static SingleStep = function()
 	{
 		var Command = ds_list_find_value(CommandList, ProgramPointer);
+		var advance = false;
 		try
 		{
-			var advance = true;
+			advance = true;
 			switch(Command.Command)
 			{
 			//sys
@@ -382,6 +383,7 @@ function EventHandler() constructor
 				case EventCode.WaitTimer:
 					State = EventState.Waiting;
 					WaitMode = EventWaitMode.Timer;
+					WaitTimer = Command.Data;
 				break;
 				case EventCode.WaitMemory:
 					State = EventState.Waiting;
@@ -436,6 +438,8 @@ function EventHandler() constructor
 		{
 			InternalCrashHandler(Exception);
 		}
+		
+		return advance;	//return continue state, so it doesn't burn a bunch of loops
 	}
 	static Render = function()
 	{
