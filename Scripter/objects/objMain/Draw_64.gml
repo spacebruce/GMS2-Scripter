@@ -156,6 +156,22 @@ draw_line(room_width*(3/4),room_height*(1/3), room_width*(3/4), room_height*(2/3
 
 #region Interrupts
 draw_text(room_width*(3/4)+5, room_height*(1/3), "Interrupts");
+
+var t = "no timers";
+if(Event.State == EventState.Waiting)
+{
+	switch(Event.WaitMode)
+	{
+		case EventWaitMode.Timer:
+			t = "Wait timer " + string(Event.WaitTimer);
+		break;
+		case EventWaitMode.Memory:
+			t = "Wait memory " + string(Event.WaitMemory);
+		break;
+	}
+}
+draw_text(room_width*(3/4)+20, room_height*(1/3)+h, t);
+
 for(var i = 0; i < ds_list_size(Event.Interrupts); ++i)
 {
 	var interrupt = Event.Interrupts[| i];
@@ -171,7 +187,7 @@ for(var i = 0; i < ds_list_size(Event.Interrupts); ++i)
 			type = "External";
 		break;
 	}
-	draw_text(room_width*(3/4)+20, room_height*(1/3) + ((i + 1) * h), type + " : " + data + " : " + string(interrupt.Function));
+	draw_text(room_width*(3/4)+20, room_height*(1/3) + ((i + 2) * h), type + " : " + data + " : " + string(interrupt.Function));
 }
 
 #endregion
