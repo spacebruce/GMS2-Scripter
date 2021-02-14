@@ -9,9 +9,9 @@ Event.SetTick(1);
 
 Event.Push(15);
 Event.Push(20);
+Event.Swap();
 //Add 1 to the current stack in one seconds time
 Event.InterruptRegister(EventInterruptType.Timer, 1.0 , "PushOne");	
-Event.Swap();
 Event.Wait(3);
 Event.FunctionCall("funcAddTwoNumbers");	//AddFunc(100, 100);
 Event.DebugStackPrint();
@@ -28,3 +28,4 @@ Event.Return(1);	//	return x
 Event.Function("PushOne",0);	
 Event.Push(1);	
 Event.Return(1);	//	return x
+

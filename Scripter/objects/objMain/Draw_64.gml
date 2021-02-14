@@ -152,6 +152,30 @@ if(ds_stack_size(Event.FunctionArguments) > 0)
 }
 #endregion
 
+draw_line(room_width*(3/4),room_height*(1/3), room_width*(3/4), room_height*(2/3));
+
+#region Interrupts
+draw_text(room_width*(3/4)+5, room_height*(1/3), "Interrupts");
+for(var i = 0; i < ds_list_size(Event.Interrupts); ++i)
+{
+	var interrupt = Event.Interrupts[| i];
+	var type = "";
+	var data = "";
+	switch(interrupt.Type)
+	{
+		case EventInterruptType.Timer:
+			type = "Timer";
+			data = string(interrupt.Value.Time);
+		break;
+		case EventInterruptType.UI:
+			type = "External";
+		break;
+	}
+	draw_text(room_width*(3/4)+20, room_height*(1/3) + ((i + 1) * h), type + " : " + data + " : " + string(interrupt.Function));
+}
+
+#endregion
+
 #region jump map
 
 draw_text((room_width*0.5) + 5, (room_height*(2/3)), "Jumps")

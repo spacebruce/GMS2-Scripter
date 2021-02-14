@@ -129,6 +129,7 @@ function EventHandler() constructor
 				else if (is_string(interrupt.Function))
 				{
 					InternalFunctionCall(interrupt.Function);
+					//set thread delay false here
 				}
 				else
 				{
@@ -150,7 +151,7 @@ function EventHandler() constructor
 	static InternalInterruptDelete = function(Slot)
 	{
 		//Interrupts[| Slot] = undefined;
-		throw "can't delete interrupts, needs rethink"
+		throw "can't delete interrupts like this, needs rethink";
 	}
 	static InternalGoto = function(Name)
 	{		
@@ -179,7 +180,7 @@ function EventHandler() constructor
 		}
 		//Store new arguments & return pointer on stack
 		ds_stack_push(FunctionArguments, args);
-		ds_stack_push(ReturnPointer, ProgramPointer);		//Return pointer
+		ds_stack_push(ReturnPointer, ProgramPointer + 1);		//Return pointer
 		ds_stack_push(FunctionEntryPoint, target.Target);	//For tail call
 		//Go to function & create new stack frame
 		ProgramPointer = target.Target;
@@ -203,7 +204,7 @@ function EventHandler() constructor
 		//Move pointer back
 		ProgramPointer = ds_stack_pop(ReturnPointer);
 		//Return to previous stack frame
-		InternalDiscardStackFrame();	
+		InternalDiscardStackFrame();
 		//Offload args onto stack
 		repeat(Size)
 		{
@@ -325,6 +326,7 @@ function EventHandler() constructor
 			
 		//Handle timers, delays, interrupts
 		InternalInterruptPoll(Timestep);
+		
 		if(State == EventState.Waiting)
 		{
 			switch(WaitMode)
@@ -332,10 +334,12 @@ function EventHandler() constructor
 				case EventWaitMode.Timer:
 					WaitTimer -= Timestep;
 					if(WaitTimer < 0)
+					{
 						State = EventState.Running;
+					}
 				break;
 				case EventWaitMode.Memory:
-					if(ds_list_size(Interrupts))
+					if(ds_list_size(Interrupts) == 0)
 					{
 						throw "uhhh, program might be stuck without outside intervention";
 					}
@@ -350,14 +354,16 @@ function EventHandler() constructor
 		//If not ready to do something, halt
 		if(State != EventState.Running)
 			return;	
+		
 		var ticks = TickRate;
 		var running = true;
 		while(running)
 		{
-			var advance = SingleStep();	//returns "not jammed"
+			SingleStep();
 			--ticks;
-			running = advance && (ticks > 0) && (State == EventState.Running)
+			running = (ticks > 0) && (State == EventState.Running)
 		}
+		InternalDebug("Ran",TickRate - ticks);
 	}
 	static SingleStep = function()
 	{
@@ -374,20 +380,23 @@ function EventHandler() constructor
 				case EventCode.End:			State = EventState.Finished;	advance = false;	break;
 				case EventCode.Nop:			/*		nah			*/			break;
 			//flow
-				case EventCode.JumpTo:			InternalFunctionCall(Command.Data);		break;
+				case EventCode.JumpTo:		InternalFunctionCall(Command.Data);	advance = false;	break;
 				case EventCode.NewStackFrame:		InternalNewStackFrame();		break;
 				case EventCode.DiscardStackFrame:	InternalDiscardStackFrame();	break;
-				case EventCode.Return:				InternalFunctionReturn(Command.Data);		break;
+				case EventCode.Return:				InternalFunctionReturn(Command.Data); advance = false;	break;
 				case EventCode.GetArgument:	ds_stack_push(Stack, InternalGetArgument(Command.Data));	break;
 			//Wait locks
 				case EventCode.WaitTimer:
 					State = EventState.Waiting;
 					WaitMode = EventWaitMode.Timer;
 					WaitTimer = Command.Data;
+					advance = false;
 				break;
 				case EventCode.WaitMemory:
 					State = EventState.Waiting;
 					WaitMode = EventWaitMode.Memory;
+					WaitMemory = Command.Data;
+					advance = false;
 				break;
 			//Interrupts
 				case EventCode.InterruptRegister:
@@ -439,7 +448,7 @@ function EventHandler() constructor
 			InternalCrashHandler(Exception);
 		}
 		
-		return advance;	//return continue state, so it doesn't burn a bunch of loops
+		//return advance;	//return continue state, so it doesn't burn a bunch of loops
 	}
 	static Render = function()
 	{
@@ -466,7 +475,7 @@ function EventHandler() constructor
 		static Function = function(Name, Size)
 		{
 			CommandAddData(EventCode.FunctionStart, Size);	
-			var pos = ds_list_size(CommandList) - 1;
+			var pos = ds_list_size(CommandList);
 			ds_map_add(JumpMap, Name, { Target : pos, Arguments : Size } ); 
 			InternalDebug("Jump register",Name, "line", pos, "Args", Size)
 		}
