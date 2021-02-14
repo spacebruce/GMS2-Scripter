@@ -59,6 +59,7 @@ function EventHandler() constructor
 	Debug = false;
 	ProgramPointer = 0;
 	Stack = ds_stack_create();
+	IsInterrupt = ds_stack_create();
 	StackHistory = ds_stack_create();
 	TickRate = 50;
 	ReturnPointer = ds_stack_create();
@@ -75,6 +76,7 @@ function EventHandler() constructor
 	Destroy = function()
 	{
 		/*	did i miss anything	*/
+		ds_stack_destroy(IsInterrupt);
 		ds_list_destroy(CommandList);
 		ds_stack_destroy(Stack);
 		while(ds_stack_size(StackHistory) > 0)
@@ -128,7 +130,7 @@ function EventHandler() constructor
 				}
 				else if (is_string(interrupt.Function))
 				{
-					InternalFunctionCall(interrupt.Function);
+					InternalFunctionCall(interrupt.Function, true);
 					//set thread delay false here
 				}
 				else
@@ -161,7 +163,7 @@ function EventHandler() constructor
 			throw("Bad jump, can't find label " + string(Name));
 		ProgramPointer = target.Target;
 	}
-	static InternalFunctionCall = function(Name)
+	static InternalFunctionCall = function(Name, Interrupt)
 	{
 		InternalDebug("Jumping to",Name);
 		//Find target and get argument signature
@@ -179,6 +181,7 @@ function EventHandler() constructor
 			InternalDebug("arg",i,"a");
 		}
 		//Store new arguments & return pointer on stack
+		ds_stack_push(IsInterrupt, Interrupt);
 		ds_stack_push(FunctionArguments, args);
 		ds_stack_push(ReturnPointer, ProgramPointer + 1);		//Return pointer
 		ds_stack_push(FunctionEntryPoint, target.Target);	//For tail call
@@ -201,6 +204,7 @@ function EventHandler() constructor
 		ds_list_destroy(ds_stack_top(FunctionArguments));
 		ds_stack_pop(FunctionArguments);
 		ds_stack_pop(FunctionEntryPoint);
+		ds_stack_pop(IsInterrupt);
 		//Move pointer back
 		ProgramPointer = ds_stack_pop(ReturnPointer);
 		//Return to previous stack frame
@@ -351,8 +355,10 @@ function EventHandler() constructor
 			}
 		}
 		
+		var CanRun = State == EventState.Running || ((ds_stack_size(IsInterrupt) > 0) && ds_stack_top(IsInterrupt) == true)
+		
 		//If not ready to do something, halt
-		if(State != EventState.Running)
+		if(!CanRun)
 			return;	
 		
 		var ticks = TickRate;
@@ -380,7 +386,7 @@ function EventHandler() constructor
 				case EventCode.End:			State = EventState.Finished;	advance = false;	break;
 				case EventCode.Nop:			/*		nah			*/			break;
 			//flow
-				case EventCode.JumpTo:		InternalFunctionCall(Command.Data);	advance = false;	break;
+				case EventCode.JumpTo:		InternalFunctionCall(Command.Data, false);	advance = false;	break;
 				case EventCode.NewStackFrame:		InternalNewStackFrame();		break;
 				case EventCode.DiscardStackFrame:	InternalDiscardStackFrame();	break;
 				case EventCode.Return:				InternalFunctionReturn(Command.Data); advance = false;	break;
