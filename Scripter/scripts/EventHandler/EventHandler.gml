@@ -55,6 +55,7 @@ function EventHandler() constructor
 	State = EventState.Running;
 	WaitMode = EventWaitMode.None;
 	WaitTimer = -1;
+	Waiting = false;
 	WaitMemory = [0,0];
 	Debug = false;
 	ProgramPointer = 0;
@@ -393,10 +394,18 @@ function EventHandler() constructor
 				case EventCode.GetArgument:	ds_stack_push(Stack, InternalGetArgument(Command.Data));	break;
 			//Wait locks
 				case EventCode.WaitTimer:
-					State = EventState.Waiting;
-					WaitMode = EventWaitMode.Timer;
-					WaitTimer = Command.Data;
-					advance = false;
+					if(Waiting)
+					{
+						Waiting = false;
+					}
+					else
+					{
+						State = EventState.Waiting;
+						WaitMode = EventWaitMode.Timer;
+						WaitTimer = Command.Data;
+						advance = false;
+						Waiting = true;
+					}
 				break;
 				case EventCode.WaitMemory:
 					State = EventState.Waiting;
