@@ -42,7 +42,8 @@ in no particular order,
 | InterruptDelete | ??? |  | Deletes specified interrupt. Doesn't work yet. |
 | MemorySet | 2 (Integer, X) |  | Sets memory location to value. no type checking yet, be careful! |
 | MemoryGet | 1 (Integer) | +1 | Gets data at memory location and pushes to stack. |
-|                   |             |  |  |
+| WaitTimer | 1 (Float) |  | Pauses program for X seconds |
+| WaitMemory | 2 (Integer, X) | Pauses program until specified memory location == value. Will freeze program if there's no source for that data, UI, Interrupts, etc  |
 | Push | 1 (Integer) | +1 | Pushes value to stack |
 | Pop | 0 | -1 | Deletes top value on stack |
 | Swap | 0 | -2 +2 | Swaps last 2 stack values |
@@ -70,3 +71,14 @@ in no particular order,
 | Increment | 0 | -1 +1 | Adds 1 to top stack item |
 | Decrement | 0 | -1 +1 | Subtracts 1 from top stack item |
 |  |  |  |  |
+
+## If I may interrupt, 
+
+Interrupts run outside of the main loop and can still execute when the main thread is paused. 
+```gms2
+Event.RegisterInterrupt(EventInterruptType.Timer, 1.5 , "PushOne");
+```
+Will create a timer that waits 1.5 seconds and then runs function PushOne.
+| Type | Arguments | Notes |
+| EventInterruptType.Timer | 1 (Float) | Waits for X seconds |
+| EventInterruptType.Memory | 2 (Integer, X) | Waits until memory location == X |  
