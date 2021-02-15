@@ -15,7 +15,7 @@ function EventHandler() constructor
 	enum EventCode
 	{
 		DebugPrint, DebugStackPrint, End, Nop, FunctionStart, 
-		InterruptRegister, InterruptDelete, JumpTo, NewStackFrame, DiscardStackFrame, Call,Return, MemGet, MemSet, Push, Pop, Swap, GetArgument, 
+		InterruptRegister, InterruptDelete, JumpTo, NewStackFrame, DiscardStackFrame, Call,Return, MemGet, MemSet, Push, Pop, Swap, Duplicate, DuplicateRange, GetArgument, 
 		WaitTimer, WaitMemory, Increment,Decrement,	Add,Subtract,Divide,Multiply, FlipSign,
 		Equals, NotEquals, LessThan, GreaterThan, 
 	}
@@ -266,7 +266,7 @@ function EventHandler() constructor
 		NamesDefined = true;
 		FunctionName[? EventCode.DebugPrint] = "DebugPrint";	FunctionName[? EventCode.End] = "End";	FunctionName[? EventCode.Nop] = "Nop";
 		FunctionName[? EventCode.JumpTo] = "Goto Label";	FunctionName[? EventCode.NewStackFrame] = "New stack";	FunctionName[? EventCode.DiscardStackFrame] = "Discard Stack";
-		FunctionName[? EventCode.Call] = "Function";	FunctionName[? EventCode.Return] = "Return";	FunctionName[? EventCode.Push] = "Push";
+		FunctionName[? EventCode.Call] = "Function";	FunctionName[? EventCode.Return] = "Return";	FunctionName[? EventCode.Push] = "Push";	FunctionName[? EventCode.Duplicate] = "Duplicate";	FunctionName[? EventCode.DuplicateRange] = "Duplicate Range";
 		FunctionName[? EventCode.Pop] = "Pop";	FunctionName[? EventCode.Add] = "Add";	FunctionName[? EventCode.Subtract] = "Subtract";
 		FunctionName[? EventCode.Divide] = "Divide";	FunctionName[? EventCode.Multiply] = "Multiply";	FunctionName[? EventCode.FlipSign] = "Flip Sign";
 		FunctionName[? EventCode.Increment] = "Increment";	FunctionName[? EventCode.Decrement] = "Decrement";	FunctionName[? EventCode.GetArgument] = "Push argument";
@@ -434,6 +434,21 @@ function EventHandler() constructor
 					ds_stack_push(Stack, a);
 					ds_stack_push(Stack, b);
 				break;
+				case EventCode.Duplicate:
+					var a = ds_stack_pop(Stack);
+					repeat(Command.Data)
+						ds_stack_push(Stack);
+				break;
+				case EventCode.DuplicateRange:		//turns stack A,B,C to A,B,C,A,B,C 
+					var list = ds_list_create();
+					repeat(Command.Data)
+						ds_list_add(list, ds_stack_pop(Stack));
+					for(var i = 0; i < Command.Data; ++i)
+						ds_stack_push(Stack, list[| i]);
+					for(var i = 0; i < Command.Data; ++i)
+						ds_stack_push(Stack, list[| i]);
+					ds_list_destroy(list);
+				break;
 			//Equality
 				case EventCode.Equals:
 					var a = ds_stack_pop(Stack);
@@ -552,6 +567,8 @@ function EventHandler() constructor
 		static Pop = function() { CommandAdd(EventCode.Pop); }
 		static Swap = function() { CommandAdd(EventCode.Swap); }
 		static PopMultiple = function(Count) { repeat(Count) { CommandAdd(EventCode.Pop); } }
+		static Duplicate = function(Count) { CommandAddData(EventCode.Duplicate, Count);	};
+		static DuplicateRange = function(Length) { CommandAddData(EventCode.DuplicateRange, Length); };
 		//Arithmetic
 		static Add = function() { CommandAdd(EventCode.Add); }
 		static Subtract = function() { CommandAdd(EventCode.Subtract); };
