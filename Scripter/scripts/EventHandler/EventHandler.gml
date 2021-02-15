@@ -14,13 +14,10 @@ function EventHandler() constructor
 	}
 	enum EventCode
 	{
-		DebugPrint, DebugStackPrint, End, Nop, FunctionStart,
-		InterruptRegister, InterruptDelete, 
-		JumpTo, NewStackFrame, DiscardStackFrame, Call,Return, 
-		MemGet, MemSet, Push, Pop, Swap, GetArgument, 
-		WaitTimer, WaitMemory, 
-		Increment,Decrement,
-		Add,Subtract,Divide,Multiply, FlipSign,
+		DebugPrint, DebugStackPrint, End, Nop, FunctionStart, 
+		InterruptRegister, InterruptDelete, JumpTo, NewStackFrame, DiscardStackFrame, Call,Return, MemGet, MemSet, Push, Pop, Swap, GetArgument, 
+		WaitTimer, WaitMemory, Increment,Decrement,	Add,Subtract,Divide,Multiply, FlipSign,
+		Equals, NotEquals, LessThan, GreaterThan, 
 	}
 	enum EventState 
 	{
@@ -276,6 +273,7 @@ function EventHandler() constructor
 		FunctionName[? EventCode.GetArgument] = "Get argument"; FunctionName[? EventCode.FunctionStart] = "Function Start"; FunctionName[? EventCode.DebugStackPrint] = "Debug print stack top";
 		FunctionName[? EventCode.Swap] = "Swap";	FunctionName[? EventCode.WaitTimer] = "Wait timer";	FunctionName[? EventCode.WaitMemory] = "Wait Memory";
 		FunctionName[? EventCode.InterruptDelete] = "Interrupt delete";	FunctionName[? EventCode.InterruptRegister] = "Interrupt register";
+		FunctionName[? EventCode.Equals] = "Equals";	FunctionName[? EventCode.NotEquals] = "Not Equals";	FunctionName[? EventCode.GreaterThan] = "Greater Than";	FunctionName[? EventCode.LessThan] = "Less Than";	
 	}
 	static InternalCrashHandler = function(Exception)
 	{
@@ -436,6 +434,27 @@ function EventHandler() constructor
 					ds_stack_push(Stack, a);
 					ds_stack_push(Stack, b);
 				break;
+			//Equality
+				case EventCode.Equals:
+					var a = ds_stack_pop(Stack);
+					var b = ds_stack_pop(Stack);
+					ds_stack_push(Stack, a == b);
+				break;
+				case EventCode.NotEquals:
+					var a = ds_stack_pop(Stack);
+					var b = ds_stack_pop(Stack);
+					ds_stack_push(Stack, a != b);
+				break;
+				case EventCode.LessThan:
+					var a = ds_stack_pop(Stack);
+					var b = ds_stack_pop(Stack);
+					ds_stack_push(Stack, a < b);
+				break;
+				case EventCode.GreaterThan:
+					var a = ds_stack_pop(Stack);
+					var b = ds_stack_pop(Stack);
+					ds_stack_push(Stack, a > b);
+				break;
 			//Numbers
 				case EventCode.Add:
 					var a = ds_stack_pop(Stack);	var b = ds_stack_pop(Stack);
@@ -470,10 +489,6 @@ function EventHandler() constructor
 		}
 		
 		//return advance;	//return continue state, so it doesn't burn a bunch of loops
-	}
-	static Render = function()
-	{
-		
 	}
 	static SetTick = function(Ticks)
 	{
@@ -546,6 +561,11 @@ function EventHandler() constructor
 		static SubtractConst = function(Value) { CommandAdd(EventCode.Push, Value); CommandAdd(EventCode.Add);};
 		static DivideConst = function(Value) { CommandAdd(EventCode.Push, Value); CommandAdd(EventCode.Add); };
 		static MultiplyConst = function(Value) { CommandAdd(EventCode.Push, Value); CommandAdd(EventCode.Add); };
+		//Equality & stuff
+		static Equals = function() { CommandAdd(EventCode.Equals);	}
+		static NotEquals = function() { CommandAdd(EventCode.NotEquals); }
+		static LessThan = function() { CommandAdd(EventCode.LessThan); }
+		static GreaterThan = function() { CommandAdd(EventCode.GreaterThan); }
 		//Unary stuff
 		static FlipSign = function() { CommandAdd(EventCode.FlipSign); }
 		static Increment = function() { CommandAddData(EventCode.Push); CommandAdd(EventCode.Add); }
