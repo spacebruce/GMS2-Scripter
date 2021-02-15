@@ -35,7 +35,7 @@ in no particular order,
 | DiscardStackFrame | 0           | old stack                       | Deletes current stack scope                                |
 | GetArgument       | 1 (Integer) | +1 | Gets argument X and pushes to current stack |
 | Label | 1 (String) |  | Creates a named Goto label |
-| Goto | 1 (String) |  | Jumps to named label. Does not change alter scope. |
+| Goto | 1 (String) |  | Jumps to named label. Does not change scope. |
 | Function | 2 (String, Integer) |  | Defines a function label of Name, Argument count |
 | FunctionCall | 1 (String) |  | Jumps to named function, creates new scope. Use Return to exit scope. |
 | InterruptRegister | 3 (Type, Trigger Value, Function) |  | Registers an interrupt. Explained elsewhere. |
