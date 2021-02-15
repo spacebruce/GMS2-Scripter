@@ -15,7 +15,7 @@ function EventHandler() constructor
 	enum EventCode
 	{
 		DebugPrint, DebugStackPrint, End, Nop, FunctionStart, 
-		InterruptRegister, InterruptDelete, JumpTo, NewStackFrame, DiscardStackFrame, Call,Return, MemGet, MemSet, Push, Pop, Swap, Duplicate, DuplicateRange, GetArgument, 
+		InterruptRegister, InterruptDelete, JumpTo, Goto, NewStackFrame, DiscardStackFrame, Call,Return, MemGet, MemSet, Push, Pop, Swap, Duplicate, DuplicateRange, GetArgument, 
 		WaitTimer, WaitMemory, Increment,Decrement,	Add,Subtract,Divide,Multiply, FlipSign,
 		Equals, NotEquals, LessThan, GreaterThan, IfTrue, IfFalse,
 	}
@@ -264,8 +264,8 @@ function EventHandler() constructor
 			@yoyo plz give us enum reflection so I don't need to do this crap
 		*/
 		NamesDefined = true;
-		FunctionName[? EventCode.DebugPrint] = "DebugPrint";	FunctionName[? EventCode.End] = "End";	FunctionName[? EventCode.Nop] = "Nop";
-		FunctionName[? EventCode.JumpTo] = "Goto Label";	FunctionName[? EventCode.NewStackFrame] = "New stack";	FunctionName[? EventCode.DiscardStackFrame] = "Discard Stack";
+		FunctionName[? EventCode.DebugPrint] = "DebugPrint";	FunctionName[? EventCode.End] = "End";	FunctionName[? EventCode.Nop] = "Nop";	FunctionName[? EventCode.Goto] = "Goto";
+		FunctionName[? EventCode.JumpTo] = "Call function";	FunctionName[? EventCode.NewStackFrame] = "New stack";	FunctionName[? EventCode.DiscardStackFrame] = "Discard Stack";
 		FunctionName[? EventCode.Call] = "Function";	FunctionName[? EventCode.Return] = "Return";	FunctionName[? EventCode.Push] = "Push";	FunctionName[? EventCode.Duplicate] = "Duplicate";	FunctionName[? EventCode.DuplicateRange] = "Duplicate Range";
 		FunctionName[? EventCode.Pop] = "Pop";	FunctionName[? EventCode.Add] = "Add";	FunctionName[? EventCode.Subtract] = "Subtract";
 		FunctionName[? EventCode.Divide] = "Divide";	FunctionName[? EventCode.Multiply] = "Multiply";	FunctionName[? EventCode.FlipSign] = "Flip Sign";
@@ -395,6 +395,13 @@ function EventHandler() constructor
 				case EventCode.JumpTo:		
 					InternalFunctionCall(Command.Data, false);
 					advance = false;	
+				break;
+				case EventCode.Goto:
+					var jump = ds_map_find_value(JumpMap, Command.Data);
+					if(is_undefined(jump))
+						throw "Bad jump" + string(Command.Data);
+					ProgramPointer = jump.Target;
+					advance = false;
 				break;
 				case EventCode.NewStackFrame:
 					InternalNewStackFrame();		
@@ -554,11 +561,10 @@ function EventHandler() constructor
 		}
 		static Goto = function(Name)
 		{	
-			CommandAddData(EventCode.JumpLabel, Name);	
+			CommandAddData(EventCode.Goto, Name);	
 		}
 		static FunctionCall = function(Name)
 		{
-			//CommandAdd(EventCode.NewStackFrame);
 			CommandAddData(EventCode.JumpTo, Name);
 		}
 		static Return = function(Size)	{ CommandAddData(EventCode.Return, Size); }
