@@ -66,6 +66,7 @@ function EventHandler() constructor
 	ReturnPointer = ds_stack_create();
 	FunctionArguments = ds_stack_create();
 	FunctionEntryPoint = ds_stack_create();
+	InterruptsIgnoreWait = true;
 	
 	Interrupts = ds_list_create();
 	JumpMap = ds_map_create();
@@ -356,7 +357,8 @@ function EventHandler() constructor
 			}
 		}
 		
-		var CanRun = State == EventState.Running || ((ds_stack_size(IsInterrupt) > 0) && ds_stack_top(IsInterrupt) == true)
+		//Allow execution if it's running or if in an interrupt
+		var CanRun = State == EventState.Running || (InterruptsIgnoreWait && (ds_stack_size(IsInterrupt) > 0) && ds_stack_top(IsInterrupt) == true)
 		
 		//If not ready to do something, halt
 		if(!CanRun)
