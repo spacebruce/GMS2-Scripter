@@ -45,12 +45,16 @@ for(var i = 0; i < ds_list_size(Event.CommandList); ++i)
 	{
 		if(thing.Command == EventCode.JumpTo || thing.Command == EventCode.Call)
 		{
+			if(is_method(thing.Data))
+				continue;
+			
 			var c = c_black;
 			switch(thing.Command)
 			{
 				case EventCode.JumpTo: c = c_blue; break;
 				case EventCode.Call: c = c_red;	break;
 			}
+				
 			var target = ds_map_find_value(Event.JumpMap, data).Target;
 			var y1 = (h * (i + 2.5));
 			var x1 = 20 + string_width(str) + 5;
