@@ -17,7 +17,7 @@ function EventHandler() constructor
 		DebugPrint, DebugStackPrint, End, Nop, FunctionStart, 
 		InterruptRegister, InterruptDelete, JumpTo, NewStackFrame, DiscardStackFrame, Call,Return, MemGet, MemSet, Push, Pop, Swap, Duplicate, DuplicateRange, GetArgument, 
 		WaitTimer, WaitMemory, Increment,Decrement,	Add,Subtract,Divide,Multiply, FlipSign,
-		Equals, NotEquals, LessThan, GreaterThan, 
+		Equals, NotEquals, LessThan, GreaterThan, IfTrue, IfFalse,
 	}
 	enum EventState 
 	{
@@ -274,6 +274,7 @@ function EventHandler() constructor
 		FunctionName[? EventCode.Swap] = "Swap";	FunctionName[? EventCode.WaitTimer] = "Wait timer";	FunctionName[? EventCode.WaitMemory] = "Wait Memory";
 		FunctionName[? EventCode.InterruptDelete] = "Interrupt delete";	FunctionName[? EventCode.InterruptRegister] = "Interrupt register";
 		FunctionName[? EventCode.Equals] = "Equals";	FunctionName[? EventCode.NotEquals] = "Not Equals";	FunctionName[? EventCode.GreaterThan] = "Greater Than";	FunctionName[? EventCode.LessThan] = "Less Than";	
+		FunctionName[? EventCode.IfTrue] = "If true";	FunctionName[? EventCode.IfFalse] = "If false";
 	}
 	static InternalCrashHandler = function(Exception)
 	{
@@ -391,11 +392,32 @@ function EventHandler() constructor
 				case EventCode.End:			State = EventState.Finished;	advance = false;	break;
 				case EventCode.Nop:			/*		nah			*/			break;
 			//flow
-				case EventCode.JumpTo:		InternalFunctionCall(Command.Data, false);	advance = false;	break;
-				case EventCode.NewStackFrame:		InternalNewStackFrame();		break;
-				case EventCode.DiscardStackFrame:	InternalDiscardStackFrame();	break;
-				case EventCode.Return:				InternalFunctionReturn(Command.Data); advance = false;	break;
-				case EventCode.GetArgument:	ds_stack_push(Stack, InternalGetArgument(Command.Data));	break;
+				case EventCode.JumpTo:		
+					InternalFunctionCall(Command.Data, false);
+					advance = false;	
+				break;
+				case EventCode.NewStackFrame:
+					InternalNewStackFrame();		
+				break;
+				case EventCode.DiscardStackFrame:	
+					InternalDiscardStackFrame();	
+				break;
+				case EventCode.Return:				
+					InternalFunctionReturn(Command.Data);
+					advance = false;
+				break;
+				case EventCode.GetArgument:
+					ds_stack_push(Stack, InternalGetArgument(Command.Data));
+				break;
+			//if's
+				case EventCode.IfTrue:	//Skip next instruction if FALSE
+					if ds_stack_pop(Stack) != true		
+						ProgramPointer = ProgramPointer + 1;
+				break;
+				case EventCode.IfFalse:	//I KNOW THIS LOOKS BACKWARDS
+					if (ds_stack_pop(Stack) != false)
+						ProgramPointer = ProgramPointer + 1;
+				break;
 			//Wait locks
 				case EventCode.WaitTimer:
 					if(Waiting)
@@ -569,12 +591,15 @@ function EventHandler() constructor
 		static PopMultiple = function(Count) { repeat(Count) { CommandAdd(EventCode.Pop); } }
 		static Duplicate = function(Count) { CommandAddData(EventCode.Duplicate, Count);	};
 		static DuplicateRange = function(Length) { CommandAddData(EventCode.DuplicateRange, Length); };
+		//If's
+		static IfTrue = function() { CommandAdd(EventCode.IfTrue);	}
+		static IfFalse = function() { CommandAdd(EventCode.IfFalse); }
 		//Arithmetic
 		static Add = function() { CommandAdd(EventCode.Add); }
 		static Subtract = function() { CommandAdd(EventCode.Subtract); };
 		static Divide = function() { CommandAdd(EventCode.Divide); };
 		static Multiply = function() { CommandAdd(EventCode.Multiply); };
-		static AddConst = function(Value) { CommandAdd(EventCode.Push, Value); CommandAdd(EventCode.Add); }; 
+		static AddConst = function(Value) { CommandAdd(EventCode.Push, Value); CommandAdd(EventCode.Add); };
 		static SubtractConst = function(Value) { CommandAdd(EventCode.Push, Value); CommandAdd(EventCode.Add);};
 		static DivideConst = function(Value) { CommandAdd(EventCode.Push, Value); CommandAdd(EventCode.Add); };
 		static MultiplyConst = function(Value) { CommandAdd(EventCode.Push, Value); CommandAdd(EventCode.Add); };
