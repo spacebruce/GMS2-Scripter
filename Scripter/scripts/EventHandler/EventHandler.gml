@@ -14,7 +14,7 @@ function EventHandler() constructor
 	}
 	enum EventCode
 	{
-		DebugPrint, DebugStackPrint, End, Nop, FunctionStart, 
+		DebugPrint, DebugStackPrint, End, Nop, FunctionStart, External, 
 		InterruptRegister, InterruptDelete, JumpTo, Goto, NewStackFrame, DiscardStackFrame, Call,Return, MemGet, MemSet, Push, Pop, Swap, Duplicate, DuplicateRange, GetArgument, 
 		WaitTimer, WaitMemory, Increment,Decrement,	Add,Subtract,Divide,Multiply, FlipSign,
 		Equals, NotEquals, LessThan, GreaterThan, IfTrue, IfFalse,
@@ -64,6 +64,7 @@ function EventHandler() constructor
 	FunctionArguments = ds_stack_create();
 	FunctionEntryPoint = ds_stack_create();
 	InterruptsIgnoreWait = true;
+	Externals = ds_queue_create();
 	
 	Interrupts = ds_list_create();
 	JumpMap = ds_map_create();
@@ -77,6 +78,7 @@ function EventHandler() constructor
 		/*	did i miss anything	*/
 		ds_stack_destroy(IsInterrupt);
 		ds_list_destroy(CommandList);
+		ds_queue_destroy(Externals);
 		ds_stack_destroy(Stack);
 		while(ds_stack_size(StackHistory) > 0)
 			ds_stack_destroy(ds_stack_pop(StackHistory));
@@ -274,7 +276,7 @@ function EventHandler() constructor
 		FunctionName[? EventCode.Swap] = "Swap";	FunctionName[? EventCode.WaitTimer] = "Wait timer";	FunctionName[? EventCode.WaitMemory] = "Wait Memory";
 		FunctionName[? EventCode.InterruptDelete] = "Interrupt delete";	FunctionName[? EventCode.InterruptRegister] = "Interrupt register";
 		FunctionName[? EventCode.Equals] = "Equals";	FunctionName[? EventCode.NotEquals] = "Not Equals";	FunctionName[? EventCode.GreaterThan] = "Greater Than";	FunctionName[? EventCode.LessThan] = "Less Than";	
-		FunctionName[? EventCode.IfTrue] = "If true";	FunctionName[? EventCode.IfFalse] = "If false";
+		FunctionName[? EventCode.IfTrue] = "If true";	FunctionName[? EventCode.IfFalse] = "If false";	FunctionName[? EventCode.External] = "External";
 	}
 	static InternalCrashHandler = function(Exception)
 	{
@@ -391,6 +393,7 @@ function EventHandler() constructor
 				case EventCode.DebugStackPrint:	show_debug_message(string(ds_stack_top(Stack)));	break;
 				case EventCode.End:			State = EventState.Finished;	advance = false;	break;
 				case EventCode.Nop:			/*		nah			*/			break;
+				case EventCode.External:	ds_queue_enqueue(Externals, Command.Data);	break;
 			//flow
 				case EventCode.JumpTo:		
 					InternalFunctionCall(Command.Data, false);
@@ -569,6 +572,7 @@ function EventHandler() constructor
 		}
 		static Return = function(Size)	{ CommandAddData(EventCode.Return, Size); }
 		static GetArgument = function(Index)	{ CommandAddData(EventCode.GetArgument, Index);	}
+		static External = function(Data)	{	CommandAddData(EventCode.External, Data);	}
 		//Interrupts
 		static InterruptRegister = function(Type,Trigger,Function)
 		{
