@@ -15,9 +15,9 @@ Event.Equals();	//A,B, result
 Event.Duplicate(1);
 Event.Wait(1);
 Event.IfTrue()
-	Event.External(function() { show_message("Equals"); });
+	Event.Output(function() { show_message("Equals"); });
 Event.IfFalse();
-	Event.External(function() { show_message("Not equals"); });
+	Event.Output(function() { show_message("Not equals"); });
 Event.Wait(1);
 Event.FunctionCall("FuncAddTwoNumbers");	//AddFunc(100, 100);
 Event.DebugStackPrint();
