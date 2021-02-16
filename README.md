@@ -43,7 +43,7 @@ in no particular order,
 | MemorySet | 2 (Integer, X) |  | Sets memory location to value. no type checking yet, be careful! |
 | MemoryGet | 1 (Integer) | +1 | Gets data at memory location and pushes to stack. |
 | WaitTimer | 1 (Float) |  | Pauses program for X seconds |
-| WaitMemory | 2 (Integer, X) | Pauses program until specified memory location == value. Will freeze program if there's no source for that data, UI, Interrupts, etc  |
+| WaitMemory | 2 (Integer, X) | | Pauses program until specified memory location == value. Will freeze program if there's no source for that data, UI, Interrupts, etc  |
 | Push | 1 (Integer) | +1 | Pushes value to stack |
 | Pop | 0 | -1 | Deletes top value on stack |
 | Swap | 0 | -2 +2 | Swaps last 2 stack values |
