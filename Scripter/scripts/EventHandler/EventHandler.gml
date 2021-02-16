@@ -465,8 +465,8 @@ function EventHandler() constructor
 				break;
 				case EventCode.Duplicate:
 					var a = ds_stack_pop(Stack);
-					repeat(Command.Data)
-						ds_stack_push(Stack);
+					repeat(Command.Data + 1)
+						ds_stack_push(Stack, a);
 				break;
 				case EventCode.DuplicateRange:		//turns stack A,B,C to A,B,C,A,B,C 
 					var list = ds_list_create();
