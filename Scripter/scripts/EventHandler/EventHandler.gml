@@ -7,11 +7,17 @@ function EventHandler() constructor
 
 	State = EventState.Running;
 	
-	//plz yoyo give us namespaces
+	//Consider merging these
 	enum EventInterruptType
 	{
 		Timer, UI, 
 	}
+	enum EventWaitMode
+	{
+		None, Timer, Memory, Input, 
+	}
+	
+	//plz yoyo give us namespaces
 	enum EventCode
 	{
 		DebugPrint, DebugStackPrint, End, Nop, FunctionStart, Output, 
@@ -64,12 +70,14 @@ function EventHandler() constructor
 	FunctionArguments = ds_stack_create();
 	FunctionEntryPoint = ds_stack_create();
 	InterruptsIgnoreWait = true;
-	OutputQueue = ds_queue_create();
 	
 	Interrupts = ds_list_create();
 	JumpMap = ds_map_create();
 	Memory = array_create(1, 0);
 	
+	//IO
+	OutputQueue = ds_queue_create();
+	//DEBUG
 	FunctionName = ds_map_create();
 	NamesDefined = false;
 	
@@ -444,10 +452,19 @@ function EventHandler() constructor
 					}
 				break;
 				case EventCode.WaitMemory:
-					State = EventState.Waiting;
-					WaitMode = EventWaitMode.Memory;
-					WaitMemory = Command.Data;
-					advance = false;
+					if(Waiting)
+					{
+						Waiting = false;
+					}
+					else
+					{
+						State = EventState.Waiting;
+						WaitMode = EventWaitMode.Memory;
+						WaitMemory = Command.Data;
+						Waiting = true;
+						advance = false;
+					}
+				break;
 				break;
 			//Interrupts
 				case EventCode.InterruptRegister:
