@@ -1,9 +1,8 @@
 
 function EventHandler() constructor
 {
+
 	CommandList = ds_list_create();
-	//Textbox = new TextboxHandler();
-	//SpriteHandler = new SpriteHandler();
 
 	State = EventState.Running;
 	
@@ -22,16 +21,12 @@ function EventHandler() constructor
 	{
 		DebugPrint, DebugStackPrint, End, Nop, FunctionStart, Output, 
 		InterruptRegister, InterruptDelete, JumpTo, Goto, NewStackFrame, DiscardStackFrame, Call,Return, MemGet, MemSet, Push, Pop, Swap, Duplicate, DuplicateRange, GetArgument, 
-		WaitTimer, WaitMemory, Increment,Decrement,	Add,Subtract,Divide,Multiply, FlipSign,
+		WaitTimer, WaitMemory, WaitInput, Increment,Decrement,	Add,Subtract,Divide,Multiply, FlipSign,
 		Equals, NotEquals, LessThan, GreaterThan, IfTrue, IfFalse,
 	}
 	enum EventState 
 	{
 		Running, Error, Waiting, Finished, 
-	}
-	enum EventWaitMode
-	{
-		None, Timer, Memory, 
 	}
 	static EventInterrupt = function(type, value, funct) constructor
 	{
@@ -77,6 +72,8 @@ function EventHandler() constructor
 	
 	//IO
 	OutputQueue = ds_queue_create();
+	InputQueue = ds_queue_create();
+	
 	//DEBUG
 	FunctionName = ds_map_create();
 	NamesDefined = false;
@@ -333,6 +330,24 @@ function EventHandler() constructor
 			InternalNameLookup();
 		}
 	}
+	static Reset = function(Clear)
+	{
+		State = EventState.Running;
+		
+		//Clear program state
+		array_resize(Memory, 0);
+		while(ds_stack_size(StackHistory) > 0)
+		{
+			ds_stack_destroy(ds_stack_pop(StackHistory));	
+		}
+		ds_stack_clear(Stack);
+		
+		//Delete command list
+		if(Clear)
+		{
+			ds_list_clear(CommandList);
+		}
+	}
 	static Update = function(Timestep)
 	{
 		//If not ready to do something, halt
@@ -362,6 +377,9 @@ function EventHandler() constructor
 					{
 						State = EventState.Running;
 					}
+				break;
+				case EventWaitMode.Input:
+					
 				break;
 			}
 		}
@@ -465,6 +483,18 @@ function EventHandler() constructor
 						advance = false;
 					}
 				break;
+				case EventCode.WaitInput:
+					if(Waiting)
+					{
+						Waiting = false;
+					}
+					else
+					{
+						State = EventState.Waiting;
+						WaitMode = EventWaitMode.Input;
+						Waiting = true;
+						advance = false;
+					}
 				break;
 			//Interrupts
 				case EventCode.InterruptRegister:
