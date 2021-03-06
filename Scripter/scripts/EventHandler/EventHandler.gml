@@ -397,13 +397,14 @@ function EventHandler() constructor
 		{
 			SingleStep();
 			--ticks;
+			
+			//If program runs off end of list, consider it complete
+			if(ProgramPointer >= ds_list_size(CommandList))
+				State = EventState.Finished;
+			
 			running = (ticks > 0) && (State == EventState.Running)
 		}
 		InternalDebug("Ran",TickRate - ticks);
-		
-		//If program runs off end of list, consider it complete
-		if(ProgramPointer >= ds_list_size(CommandList))
-			State = EventState.Finished;
 	}
 	static SingleStep = function()
 	{
