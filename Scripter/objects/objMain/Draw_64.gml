@@ -30,9 +30,19 @@ draw_text(5, h, "Command list");
 for(var i = 0; i < ds_list_size(Script.CommandList); ++i)
 {
 	var thing = Script.CommandList[| i];
-	var type = (Script.NamesDefined) ? Script.FunctionName[? thing.Command] : string(thing.Command);
-	var data = is_undefined(thing.Data) ? "" : string(thing.Data);
-	var str = type + " : " + data
+	
+	if(thing.Command == EventCode.Extra)
+	{
+		str = "ex " + string(Script.FunctionExtraName[? thing.Data[0]]);
+		for(var n = 1; n < (array_length(thing.Data)); ++n)
+			str += ","+string(thing.Data[n]);
+	}
+	else
+	{
+		var type = (Script.NamesDefined) ? Script.FunctionName[? thing.Command] : string(thing.Command);
+		var data = is_undefined(thing.Data) ? "" : string(thing.Data);
+		var str = type + " : " + data
+	}
 
 	draw_text(20, h * (i + 2), str);
 	
@@ -181,6 +191,7 @@ for(var i = 0; i < ds_list_size(Script.Interrupts); ++i)
 	var interrupt = Script.Interrupts[| i];
 	var type = "";
 	var data = "";
+	var reset = interrupt.Reset ? "Yes" : "No";
 	switch(interrupt.Type)
 	{
 		case EventInterruptType.Timer:
@@ -191,7 +202,7 @@ for(var i = 0; i < ds_list_size(Script.Interrupts); ++i)
 			type = "External";
 		break;
 	}
-	draw_text(room_width*(3/4)+20, room_height*(1/3) + ((i + 2) * h), type + " : " + data + " : " + string(interrupt.Function));
+	draw_text(room_width*(3/4)+20, room_height*(1/3) + ((i + 2) * h), type + " : " + data + " : " + string(interrupt.Function) + "(Reset : " + reset + ")");
 }
 
 #endregion
