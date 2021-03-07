@@ -294,6 +294,7 @@ function ScriptEngine() constructor
 		FunctionName[? EventCode.Equals] = "Equals";	FunctionName[? EventCode.NotEquals] = "Not Equals";	FunctionName[? EventCode.GreaterThan] = "Greater Than";	FunctionName[? EventCode.LessThan] = "Less Than";	
 		FunctionName[? EventCode.IfTrue] = /*big*/"If true";	FunctionName[? EventCode.IfFalse] = "If false";	FunctionName[? EventCode.Output] = "Output";
 		FunctionName[? EventCode.Extra] = "ex";	FunctionName[? EventCode.InterruptClear] = "Clear Interrupts";
+		FunctionName[? EventCode.MemSet] = "Memset";	FunctionName[? EventCode.MemGet] = "Memget";
 	}
 	static InternalCallExtraFunction = function(Call)
 	{
