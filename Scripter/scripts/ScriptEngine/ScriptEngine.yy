@@ -6,7 +6,7 @@
     "path": "Scripter.yyp",
   },
   "resourceVersion": "1.0",
-  "name": "EventHandler",
+  "name": "ScriptEngine",
   "tags": [],
   "resourceType": "GMScript",
 }
