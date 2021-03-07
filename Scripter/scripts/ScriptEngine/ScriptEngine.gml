@@ -464,6 +464,12 @@ function ScriptEngine() constructor
 		try
 		{
 			advance = true;
+			
+			if(Debug)
+			{
+				InternalDebug("line",ProgramPointer,ds_map_find_value(FunctionName,Command.Command),":",Command.Data);
+			}
+			
 			switch(Command.Command)
 			{
 			//sys
