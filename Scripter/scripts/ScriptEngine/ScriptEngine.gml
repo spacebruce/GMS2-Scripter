@@ -507,6 +507,13 @@ function ScriptEngine() constructor
 					if (ds_stack_pop(Stack) != false)
 						ProgramPointer = ProgramPointer + 1;
 				break;
+			//Memory
+				case EventCode.MemGet:
+					ds_stack_push(Stack, InternalMemoryGet(Command.Data));
+				break;
+				case EventCode.MemSet:
+					InternalMemorySet(Command.Data, ds_stack_pop(Stack));
+				break;
 			//Wait locks
 				case EventCode.WaitTimer:
 					if(Waiting)
