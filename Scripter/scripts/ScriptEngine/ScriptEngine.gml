@@ -630,7 +630,7 @@ function ScriptEngine() constructor
 			InternalCrashHandler(Exception);
 		}
 		
-		return quit;	//return continue state, so it doesn't burn a bunch of loops
+		return quit || (!advance);	//return continue state, so it doesn't burn a bunch of loops
 	}
 	static SetTick = function(Ticks)
 	{
