@@ -294,7 +294,19 @@ function ScriptEngine() constructor
 		if(is_undefined(func))
 			throw InternalDebug("Cannot resolve extra function", Call[0]);
 		//InternalDebug("calling", func);
-		func();
+		var args = array_length(Call) - 1;
+		//Traditional gamemaker pyramid of doom
+		switch(args)
+		{
+			case 0:	func(); break;
+			case 1: func(Call[1]);	break;
+			case 2: func(Call[1], Call[2]);	break;
+			case 3: func(Call[1], Call[2], Call[3]);	break;
+			case 4: func(Call[1], Call[2], Call[3], Call[4]);	break;
+			default:	
+				throw InternalDebug("Too many arguments, add more to function handler!", args);
+			break;
+		}
 	}
 	static InternalCrashHandler = function(Exception)
 	{
