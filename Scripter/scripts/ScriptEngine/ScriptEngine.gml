@@ -388,7 +388,7 @@ function ScriptEngine() constructor
 			ds_list_clear(CommandList);
 		}
 	}
-	static Update = function(Timestep)
+	static UpdateBase = function(Timestep)
 	{
 		//If not ready to do something, halt
 		if(State == EventState.Finished || State == EventState.Error)
@@ -435,21 +435,27 @@ function ScriptEngine() constructor
 		var running = true;
 		while(running)
 		{
-			SingleStep();
+			var quit = SingleStep();
 			--ticks;
 			
 			//If program runs off end of list, consider it complete
 			if(ProgramPointer >= ds_list_size(CommandList))
 				State = EventState.Finished;
 			
-			running = (ticks > 0) && (State == EventState.Running)
+			running = (!quit) || ((ticks > 0) && (State == EventState.Running));
 		}
 		InternalDebug("Ran",TickRate - ticks);
+	}
+	Update = function(Timestep)
+	{
+		/*	This function is designed to be overwritten with a custom one, so no static.	*/
+		UpdateBase(Timestep);
 	}
 	static SingleStep = function()
 	{
 		var Command = ds_list_find_value(CommandList, ProgramPointer);
 		var advance = false;
+		var quit = false;
 		try
 		{
 			advance = true;
@@ -461,7 +467,7 @@ function ScriptEngine() constructor
 				case EventCode.End:			State = EventState.Finished;	advance = false;	break;
 				case EventCode.Nop:			/*		nah			*/			break;
 				case EventCode.Output:	ds_queue_enqueue(OutputQueue, Command.Data);	break;
-				case EventCode.Extra:	show_debug_message("excall");	InternalCallExtraFunction(Command.Data);	break;
+				case EventCode.Extra:	InternalCallExtraFunction(Command.Data);	quit = true;	break;
 			//flow
 				case EventCode.JumpTo:		
 					InternalFunctionCall(Command.Data, false);
@@ -624,7 +630,7 @@ function ScriptEngine() constructor
 			InternalCrashHandler(Exception);
 		}
 		
-		//return advance;	//return continue state, so it doesn't burn a bunch of loops
+		return quit;	//return continue state, so it doesn't burn a bunch of loops
 	}
 	static SetTick = function(Ticks)
 	{
