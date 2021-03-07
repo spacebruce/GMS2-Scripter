@@ -37,7 +37,7 @@ function ScriptEngine() constructor
 		switch(Type)
 		{
 			case EventInterruptType.Timer:
-				Value = { Time : value }
+				Value = { Time : value, Start : value }
 			break;
 		}
 		Trigger = function(Context)
@@ -120,7 +120,7 @@ function ScriptEngine() constructor
 						trigger = true;
 						if(interrupt.Repeat)
 						{
-							interrupt.Value.Time = interrupt.TimerStart;	//Repeat
+							interrupt.Value.Time = interrupt.Value.Start;	//Repeat
 						}
 					}
 				break;
