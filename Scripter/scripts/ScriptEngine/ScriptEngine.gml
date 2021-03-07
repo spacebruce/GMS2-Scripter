@@ -20,7 +20,7 @@ function ScriptEngine() constructor
 	enum EventCode
 	{
 		DebugPrint, DebugStackPrint, End, Nop, FunctionStart, Output, 
-		InterruptRegister, InterruptDelete, JumpTo, Goto, NewStackFrame, DiscardStackFrame, Call,Return, MemGet, MemSet, Push, Pop, Swap, Duplicate, DuplicateRange, GetArgument, 
+		InterruptRegister, InterruptDelete, InterruptClear, JumpTo, Goto, NewStackFrame, DiscardStackFrame, Call,Return, MemGet, MemSet, Push, Pop, Swap, Duplicate, DuplicateRange, GetArgument, 
 		WaitTimer, WaitMemory, WaitInput, Increment,Decrement,	Add,Subtract,Divide,Multiply, FlipSign, 
 		Equals, NotEquals, LessThan, GreaterThan, IfTrue, IfFalse, Extra,
 	}
@@ -28,21 +28,17 @@ function ScriptEngine() constructor
 	{
 		Running, Error, Waiting, Finished, 
 	}
-	static EventInterrupt = function(type, value, funct) constructor
+	static EventInterrupt = function(type, value, rep, funct) constructor
 	{
 		Type = type;
 		Function = funct;
-		Reset = false;
+		Repeat = rep;
 		
 		switch(Type)
 		{
 			case EventInterruptType.Timer:
 				Value = { Time : value }
 			break;
-		}
-		SetReset = function(yeah)
-		{
-			Reset = yeah;
 		}
 		Trigger = function(Context)
 		{
@@ -122,7 +118,7 @@ function ScriptEngine() constructor
 					{
 						InternalDebug("Fire interrupt", interrupt);
 						trigger = true;
-						if(interrupt.Reset)
+						if(interrupt.Repeat)
 						{
 							interrupt.Value.Time = interrupt.TimerStart;	//Repeat
 						}
@@ -148,7 +144,7 @@ function ScriptEngine() constructor
 					State = EventState.Error;
 					throw InternalDebug("Interrupt handle error - can't make sense of this function signature chief", interrupt.Function);
 				}
-				if(!interrupt.Reset)
+				if(!interrupt.Repeat)
 				{
 					delete interrupt;	//InternalInterruptDelete(i);
 					ds_list_delete(Interrupts, i);
@@ -162,8 +158,17 @@ function ScriptEngine() constructor
 	}
 	static InternalInterruptDelete = function(Slot)
 	{
-		//Interrupts[| Slot] = undefined;
-		throw "can't delete interrupts like this, needs rethink";
+		var int = Interrupts[| slot];
+		delete interrupt;
+		ds_list_delete(Interrupts, slot);
+	}
+	static InternalInterruptClear = function()	//nuke em all
+	{
+		for(var i = 0; i < ds_list_size(Interrupts); ++i)
+		{
+			delete Interrupts[| i];
+		}
+		ds_list_clear(Interrupts);
 	}
 	static InternalGoto = function(Name)
 	{		
@@ -283,10 +288,10 @@ function ScriptEngine() constructor
 		FunctionName[? EventCode.Increment] = "Increment";	FunctionName[? EventCode.Decrement] = "Decrement";	FunctionName[? EventCode.GetArgument] = "Push argument";
 		FunctionName[? EventCode.GetArgument] = "Get argument"; FunctionName[? EventCode.FunctionStart] = "Function Start"; FunctionName[? EventCode.DebugStackPrint] = "Debug print stack top";
 		FunctionName[? EventCode.Swap] = "Swap";	FunctionName[? EventCode.WaitTimer] = "Wait timer";	FunctionName[? EventCode.WaitMemory] = "Wait Memory";
-		FunctionName[? EventCode.InterruptDelete] = "Interrupt delete";	FunctionName[? EventCode.InterruptRegister] = "Interrupt register";
+		FunctionName[? EventCode.InterruptDelete] = "Interrupt delete";	FunctionName[? EventCode.InterruptRegister] = "Interrupt register";	FunctionName[? EventCode.InterruptClear] = "Clear Interrupts";
 		FunctionName[? EventCode.Equals] = "Equals";	FunctionName[? EventCode.NotEquals] = "Not Equals";	FunctionName[? EventCode.GreaterThan] = "Greater Than";	FunctionName[? EventCode.LessThan] = "Less Than";	
 		FunctionName[? EventCode.IfTrue] = /*big*/"If true";	FunctionName[? EventCode.IfFalse] = "If false";	FunctionName[? EventCode.Output] = "Output";
-		FunctionName[? EventCode.Extra] = "ex";
+		FunctionName[? EventCode.Extra] = "ex";	FunctionName[? EventCode.InterruptClear] = "Clear Interrupts";
 	}
 	static InternalCallExtraFunction = function(Call)
 	{
@@ -547,10 +552,13 @@ function ScriptEngine() constructor
 			//Interrupts
 				case EventCode.InterruptRegister:
 					var interrupt = Command.Data;	//[Slot, Type,Trigger, Function]
-					InternalInterruptRegister(new EventInterrupt(interrupt[0],interrupt[1],interrupt[2]));
+					InternalInterruptRegister(new EventInterrupt(interrupt[0],interrupt[1],interrupt[2],interrupt[3]));
 				break;
 				case EventCode.InterruptDelete:
 					InternalInterruptDelete(Command.Data);
+				break;
+				case EventCode.InterruptClear:
+					InternalInterruptClear();
 				break;
 			//Stack
 				case EventCode.Push:		ds_stack_push(Stack, Command.Data);	break;
@@ -669,13 +677,17 @@ function ScriptEngine() constructor
 		static GetArgument = function(Index)	{ CommandAddData(EventCode.GetArgument, Index);	}
 		static Output = function(Data)	{	CommandAddData(EventCode.Output, Data);	}
 		//Interrupts
-		static InterruptRegister = function(Type,Trigger,Function)
+		static InterruptRegister = function(Type,Trigger,Repeat,Function)
 		{
-			CommandAddData(EventCode.InterruptRegister, [Type,Trigger, Function]);
+			CommandAddData(EventCode.InterruptRegister, [Type,Trigger,Repeat,Function]);
 		}
 		static InterruptDelete = function(Slot)
 		{
 			CommandAddData(EventCode.InterruptDelete, Slot);
+		}
+		static InterruptClear = function()
+		{
+			CommandAdd(EventCode.InterruptClear);
 		}
 		//Wait locks
 		static Wait = function(Seconds)	{	CommandAddData(EventCode.WaitTimer, Seconds);	}
