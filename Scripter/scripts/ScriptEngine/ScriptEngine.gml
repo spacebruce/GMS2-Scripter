@@ -209,6 +209,8 @@ function ScriptEngine() constructor
 		//Save return values
 		var returnStack = ds_stack_create();
 		InternalDebug("Returning",Size);
+		
+		if(is_undefined(Size))	Size = 0;
 		repeat(Size)
 		{
 			var s = ds_stack_pop(Stack);
