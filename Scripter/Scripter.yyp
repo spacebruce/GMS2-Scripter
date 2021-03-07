@@ -4,6 +4,7 @@
     {"id":{"name":"Room1","path":"rooms/Room1/Room1.yy",},"order":4,},
     {"id":{"name":"ScriptyBoi","path":"scripts/ScriptyBoi/ScriptyBoi.yy",},"order":6,},
     {"id":{"name":"objMain","path":"objects/objMain/objMain.yy",},"order":2,},
+    {"id":{"name":"ScriptEngineDrawDebug","path":"scripts/ScriptEngineDrawDebug/ScriptEngineDrawDebug.yy",},"order":7,},
     {"id":{"name":"ScriptEngine","path":"scripts/ScriptEngine/ScriptEngine.yy",},"order":1,},
   ],
   "Options": [
