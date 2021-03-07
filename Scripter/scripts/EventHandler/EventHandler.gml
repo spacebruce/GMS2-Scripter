@@ -21,8 +21,8 @@ function ScriptEngine() constructor
 	{
 		DebugPrint, DebugStackPrint, End, Nop, FunctionStart, Output, 
 		InterruptRegister, InterruptDelete, JumpTo, Goto, NewStackFrame, DiscardStackFrame, Call,Return, MemGet, MemSet, Push, Pop, Swap, Duplicate, DuplicateRange, GetArgument, 
-		WaitTimer, WaitMemory, WaitInput, Increment,Decrement,	Add,Subtract,Divide,Multiply, FlipSign,
-		Equals, NotEquals, LessThan, GreaterThan, IfTrue, IfFalse,
+		WaitTimer, WaitMemory, WaitInput, Increment,Decrement,	Add,Subtract,Divide,Multiply, FlipSign, 
+		Equals, NotEquals, LessThan, GreaterThan, IfTrue, IfFalse, Extra,
 	}
 	enum EventState 
 	{
@@ -69,6 +69,10 @@ function ScriptEngine() constructor
 	Interrupts = ds_list_create();
 	JumpMap = ds_map_create();
 	Memory = array_create(1, 0);
+	
+	//Extending
+	FunctionExtra = ds_map_create();
+	FunctionExtraName = ds_map_create();
 	
 	//IO
 	OutputQueue = ds_queue_create();
@@ -281,7 +285,16 @@ function ScriptEngine() constructor
 		FunctionName[? EventCode.Swap] = "Swap";	FunctionName[? EventCode.WaitTimer] = "Wait timer";	FunctionName[? EventCode.WaitMemory] = "Wait Memory";
 		FunctionName[? EventCode.InterruptDelete] = "Interrupt delete";	FunctionName[? EventCode.InterruptRegister] = "Interrupt register";
 		FunctionName[? EventCode.Equals] = "Equals";	FunctionName[? EventCode.NotEquals] = "Not Equals";	FunctionName[? EventCode.GreaterThan] = "Greater Than";	FunctionName[? EventCode.LessThan] = "Less Than";	
-		FunctionName[? EventCode.IfTrue] = "If true";	FunctionName[? EventCode.IfFalse] = "If false";	FunctionName[? EventCode.Output] = "Output";
+		FunctionName[? EventCode.IfTrue] = /*big*/"If true";	FunctionName[? EventCode.IfFalse] = "If false";	FunctionName[? EventCode.Output] = "Output";
+		FunctionName[? EventCode.Extra] = "ex";
+	}
+	static InternalCallExtraFunction = function(Call)
+	{
+		var func = FunctionExtra[? Call[0]];	//Turn function ID into real callable thing
+		if(is_undefined(func))
+			throw InternalDebug("Cannot resolve extra function", Call[0]);
+		//InternalDebug("calling", func);
+		func();
 	}
 	static InternalCrashHandler = function(Exception)
 	{
@@ -308,6 +321,7 @@ function ScriptEngine() constructor
 			show_debug_message(r)
 		}
 	}
+	
 
 	static CommandAdd = function(Type)
 	{
@@ -320,6 +334,20 @@ function ScriptEngine() constructor
 	#endregion
 	
 	#region Public
+	static RegisterExtraFunction = function(ID, Name, Function)
+	{
+		ds_map_add(FunctionExtra, ID, Function);
+		ds_map_add(FunctionExtraName, ID, Name);
+	}
+	static CallExtraFunction = function(ID)
+	{
+		var array = array_create(argument_count);
+		for(var i = 0; i < argument_count; ++i)
+		{
+			array[i] = argument[i];
+		}
+		return array;
+	}
 	static DebugMode = function(State)
 	{
 		Debug = true;	//so InternalDebug works
@@ -421,6 +449,7 @@ function ScriptEngine() constructor
 				case EventCode.End:			State = EventState.Finished;	advance = false;	break;
 				case EventCode.Nop:			/*		nah			*/			break;
 				case EventCode.Output:	ds_queue_enqueue(OutputQueue, Command.Data);	break;
+				case EventCode.Extra:	show_debug_message("excall");	InternalCallExtraFunction(Command.Data);	break;
 			//flow
 				case EventCode.JumpTo:		
 					InternalFunctionCall(Command.Data, false);
