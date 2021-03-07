@@ -16,7 +16,7 @@ Script.Duplicate(1);
 //Script.Wait(1);
 Script.IfTrue()
 	//Script.Output(function() { show_debug_message("equals"); });
-	Script.DumbMessage();
+	Script.SayWords("testing123");
 Script.IfFalse();
 	Script.Output(function() { show_debug_message("Not equals"); });
 Script.Wait(1);

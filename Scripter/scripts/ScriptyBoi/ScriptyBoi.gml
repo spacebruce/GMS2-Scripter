@@ -7,16 +7,16 @@ enum ScriptyBoiFunctions
 function ScriptyBoi() : ScriptEngine() constructor
 {
 	//Define functions here
-	RegisterExtraFunction(ScriptyBoiFunctions.DumbMessage, "DumbMessage", function()
+	RegisterExtraFunction(ScriptyBoiFunctions.DumbMessage, "DumbMessage", function(Words)
 	{
 		//send silly words onto the debug feed
-		InternalDebug(choose("this claim is disputed", "vita-chan is mai waifu"));	
+		InternalDebug(Words);
 	});
 	
 	//Put the callers here
-	static DumbMessage = function()
+	static SayWords = function(Words)
 	{
-		CommandAddData(EventCode.Extra, CallExtraFunction(ScriptyBoiFunctions.DumbMessage));
+		CommandAddData(EventCode.Extra, CallExtraFunction(ScriptyBoiFunctions.DumbMessage, Words));
 	}
 }
 
