@@ -1,5 +1,5 @@
 
-function EventHandler() constructor
+function ScriptEngine() constructor
 {
 
 	CommandList = ds_list_create();

@@ -12,7 +12,7 @@ draw_line(room_width/2, room_height*(2/3), room_width, room_height*(2/3));
 draw_text(0,0,"Test game script thingy");
 
 var s;
-switch(Event.State)
+switch(Script.State)
 {
 	case EventState.Running:	s = "Running...";	break;
 	case EventState.Finished:	s = "Program complete";	break;
@@ -27,10 +27,10 @@ draw_text(room_width/2,0,s);
 #region Command list
 
 draw_text(5, h, "Command list");
-for(var i = 0; i < ds_list_size(Event.CommandList); ++i)
+for(var i = 0; i < ds_list_size(Script.CommandList); ++i)
 {
-	var thing = Event.CommandList[| i];
-	var type = (Event.NamesDefined) ? Event.FunctionName[? thing.Command] : string(thing.Command);
+	var thing = Script.CommandList[| i];
+	var type = (Script.NamesDefined) ? Script.FunctionName[? thing.Command] : string(thing.Command);
 	var data = is_undefined(thing.Data) ? "" : string(thing.Data);
 	var str = type + " : " + data
 
@@ -55,7 +55,7 @@ for(var i = 0; i < ds_list_size(Event.CommandList); ++i)
 				case EventCode.Call: c = c_red;	break;
 			}
 				
-			var target = ds_map_find_value(Event.JumpMap, data).Target;
+			var target = ds_map_find_value(Script.JumpMap, data).Target;
 			var y1 = (h * (i + 2.5));
 			var x1 = 20 + string_width(str) + 5;
 			var y2 = (h * (target + 2.5));
@@ -69,10 +69,10 @@ for(var i = 0; i < ds_list_size(Event.CommandList); ++i)
 		}
 		if(thing.Command == EventCode.Return)
 		{
-			var inFunction = (ds_stack_size(Event.FunctionEntryPoint) > 0);
+			var inFunction = (ds_stack_size(Script.FunctionEntryPoint) > 0);
 			if(inFunction)
 			{
-				var target = ds_stack_top(Event.ReturnPointer) + 1;
+				var target = ds_stack_top(Script.ReturnPointer) + 1;
 				var y1 = (h * (i + 2.5));
 				var x1 = 20 + string_width(str) + 5;
 				var y2 = (h * (target + 2.5));
@@ -91,12 +91,12 @@ for(var i = 0; i < ds_list_size(Event.CommandList); ++i)
 DebugReady = true;
 
 //Draw cursor
-if(Event.ProgramPointer >= 0)
+if(Script.ProgramPointer >= 0)
 {
-	var iy = h * (max(0,Event.ProgramPointer) + 2);
+	var iy = h * (max(0,Script.ProgramPointer) + 2);
 	var shape;	// 0 = tri, 1 = circle
 	var col;
-	switch(Event.State)
+	switch(Script.State)
 	{
 		case EventState.Running:
 			shape = 0;
@@ -133,7 +133,7 @@ if(Event.ProgramPointer >= 0)
 
 draw_text((room_width/2) + 5, h, "Stack");
 var s = ds_stack_create();
-ds_stack_copy(s, Event.Stack);
+ds_stack_copy(s, Script.Stack);
 var i = 0;
 while(ds_stack_size(s) > 0)
 {
@@ -146,9 +146,9 @@ while(ds_stack_size(s) > 0)
 
 #region Argument
 draw_text(room_width/2 + 5, room_height*(1/3), "Function arguments");
-if(ds_stack_size(Event.FunctionArguments) > 0)
+if(ds_stack_size(Script.FunctionArguments) > 0)
 {
-	var args = ds_stack_top(Event.FunctionArguments);
+	var args = ds_stack_top(Script.FunctionArguments);
 	for(var i = 0; i < ds_list_size(args); ++i)
 	{
 		draw_text(room_width/2 + 20, room_height*(1/3) + ((i + 1) * h), string(i) + " : " + string(args[| i]));
@@ -162,23 +162,23 @@ draw_line(room_width*(3/4),room_height*(1/3), room_width*(3/4), room_height*(2/3
 draw_text(room_width*(3/4)+5, room_height*(1/3), "Interrupts");
 
 var t = "no timers";
-if(Event.State == EventState.Waiting)
+if(Script.State == EventState.Waiting)
 {
-	switch(Event.WaitMode)
+	switch(Script.WaitMode)
 	{
 		case EventWaitMode.Timer:
-			t = "Wait timer " + string(Event.WaitTimer);
+			t = "Wait timer " + string(Script.WaitTimer);
 		break;
 		case EventWaitMode.Memory:
-			t = "Wait memory " + string(Event.WaitMemory);
+			t = "Wait memory " + string(Script.WaitMemory);
 		break;
 	}
 }
 draw_text(room_width*(3/4)+20, room_height*(1/3)+h, t);
 
-for(var i = 0; i < ds_list_size(Event.Interrupts); ++i)
+for(var i = 0; i < ds_list_size(Script.Interrupts); ++i)
 {
-	var interrupt = Event.Interrupts[| i];
+	var interrupt = Script.Interrupts[| i];
 	var type = "";
 	var data = "";
 	switch(interrupt.Type)
@@ -199,11 +199,11 @@ for(var i = 0; i < ds_list_size(Event.Interrupts); ++i)
 #region jump map
 
 draw_text((room_width*0.5) + 5, (room_height*(2/3)), "Jumps")
-var s = ds_map_find_first(Event.JumpMap);
-for(var i = 0; i < ds_map_size(Event.JumpMap); ++i)
+var s = ds_map_find_first(Script.JumpMap);
+for(var i = 0; i < ds_map_size(Script.JumpMap); ++i)
 {
-	draw_text((room_width*0.5) + 20, (room_height*(2/3))+((i + 1) * h), string(s) + " : " + string(ds_map_find_value(Event.JumpMap,s)));
-	s = ds_map_find_next(Event.JumpMap, s);
+	draw_text((room_width*0.5) + 20, (room_height*(2/3))+((i + 1) * h), string(s) + " : " + string(ds_map_find_value(Script.JumpMap,s)));
+	s = ds_map_find_next(Script.JumpMap, s);
 }
 
 #endregion

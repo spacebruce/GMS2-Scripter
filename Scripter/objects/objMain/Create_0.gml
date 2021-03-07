@@ -2,30 +2,31 @@ DebugReady = false;
 DebugLineLengths = ds_list_create();
 Frame = 0;
 
-Event = new EventHandler();
-Event.DebugMode(true);
-Event.SetTick(50);
+Script = new ScriptyBoi();
+Script.DebugMode(true);
+Script.SetTick(50);
 // adding test
 
-Event.Push(20);	//A
-Event.Push(20);	//B
-Event.DuplicateRange(2);	//A,B -> A,B,A,B 
+Script.Push(20);	//A
+Script.Push(20);	//B
+Script.DuplicateRange(2);	//A,B -> A,B,A,B 
 //Add 1 to the current stack in one seconds time
-Event.Equals();	//A,B, result
-Event.Duplicate(1);
-Event.Wait(1);
-Event.IfTrue()
-	Event.Output(function() { show_message("Equals"); });
-Event.IfFalse();
-	Event.Output(function() { show_message("Not equals"); });
-Event.Wait(1);
-Event.FunctionCall("FuncAddTwoNumbers");	//AddFunc(100, 100);
-Event.DebugStackPrint();
-Event.End();
+Script.Equals();	//A,B, result
+Script.Duplicate(1);
+//Script.Wait(1);
+Script.IfTrue()
+	//Script.Output(function() { show_debug_message("equals"); });
+	Script.DumbMessage();
+Script.IfFalse();
+	Script.Output(function() { show_debug_message("Not equals"); });
+Script.Wait(1);
+Script.FunctionCall("FuncAddTwoNumbers");	//AddFunc(100, 100);
+Script.DebugStackPrint();
+Script.End();
 
 //function AddFunc(x, y) 
-Event.Function("FuncAddTwoNumbers",2);		
-Event.GetArgument(0);		
-Event.GetArgument(1);
-Event.Add();		// x = x + y;	
-Event.Return(1);	//	return x
+Script.Function("FuncAddTwoNumbers",2);		
+Script.GetArgument(0);		
+Script.GetArgument(1);
+Script.Add();		// x = x + y;	
+Script.Return(1);	//	return x
